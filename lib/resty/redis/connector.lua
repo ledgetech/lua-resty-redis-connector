@@ -3,11 +3,12 @@ redis.add_commands("sentinel")
 local sentinel = require "resty.redis.sentinel"
 
 
-local ipairs, type, setmetatable = ipairs, type, setmetatable
+local ipairs, setmetatable, pcall = ipairs, setmetatable, pcall
 local ngx_null = ngx.null
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
+local ngx_re_match = ngx.re.match
 local tbl_insert = table.insert
 local tbl_remove = table.remove
 
@@ -63,14 +64,45 @@ function _M.set_connect_options(self, options)
 end
 
 
+local function parse_dsn(params)
+    local url = params.url
+    if url then
+        local url_pattern = [[^(?:(redis|sentinel)://)(?:([^@]*)@)?([^:/]+)(?::(\d+|[msa]+))/?(.*)$]]
+        local m, err = ngx_re_match(url, url_pattern, "")
+        if not m then
+            ngx_log(ngx_ERR, "could not parse DSN: ", err)
+        else
+            local fields
+            if m[1] == "redis" then
+                fields = { "password", "host", "port", "db" }
+            elseif m[1] == "sentinel" then
+                fields = { "password", "master_name", "role", "db" }
+            end
+            
+            -- password may not be present
+            if #m < 5 then tbl_remove(fields, 1) end
+
+            local roles = { m = "master", s = "slave", a = "any" }
+            
+            for i,v in ipairs(fields) do
+                params[v] = m[i + 1]
+                if v == "role" then
+                    params[v] = roles[params[v]]
+                end
+            end
+        end
+    end
+end
+
+
 function _M.connect(self, params)
     -- If we have nothing, assume default host connection options apply
     if not params then
         params = {}
     end
-    
-    if params.url then
-        -- interpret DSN string
+
+    if params.url then 
+        parse_dsn(params) 
     end
 
     if params.sentinels then
