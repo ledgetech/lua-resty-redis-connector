@@ -180,7 +180,7 @@ James Hurst <james@pintsized.co.uk>
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2013, James Hurst <james@pintsized.co.uk>
+Copyright (c) 2015, James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
