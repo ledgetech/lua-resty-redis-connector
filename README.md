@@ -63,7 +63,7 @@ The defaults are as follows:
 Note that if `sentinel://` is supplied as the `url` parameter, a table of `sentinels` must also 
 be supplied. e.g.
 
-``lua
+```lua
 local redis, err = rc:connect{
     url = "sentinel://mymaster:a/2",
     sentinels = {
