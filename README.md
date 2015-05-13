@@ -34,9 +34,9 @@ When connecting via Redis Sentinel, the format is as follows:
 
 Again, `PASSWORD` and `DB` are optional. `ROLE` must be any of `m`, `s` or `a`, meaning:
 
-`m`: master
-`s`: slave
-`a`: any (first tries the master, but will failover to a slave if required)
+* `m`: master
+* `s`: slave
+* `a`: any (first tries the master, but will failover to a slave if required)
 
 
 ## Parameters
