@@ -55,7 +55,7 @@ The defaults are as follows:
     password = "",
     db = 0,
     master_name = "mymaster",
-    role = "master",
+    role = "master", -- master | slave | any
     sentinels = nil,
 }
 ```
