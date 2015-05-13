@@ -12,6 +12,16 @@ local redis_connector = require "resty.redis.connector"
 local rc = redis_connector.new()
 
 local redis, err = rc:connect{ url = "redis://PASSWORD@127.0.0.1:6379/2" }
+
+-- or...
+
+local redis, err = rc:connect{
+    host = "127.0.0.1",
+    port = 6379,
+    db = 2,
+    password = "PASSWORD",
+}
+
 if not redis then
     ngx.log(ngx.ERR, err)
 end
