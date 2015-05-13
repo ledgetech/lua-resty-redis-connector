@@ -80,6 +80,13 @@ local redis, err = rc:connect{
 * [set_read_timeout](#set_read_timeout)
 * [set_connection_options](#set_connection_options)
 * [connect](#connect)
+* [Utilities](#utilities)
+    * [connect_via_sentinel](#connect_via_sentinel)
+    * [try_hosts](#try_hosts)
+    * [connect_to_host](#connect_to_host)
+* [Sentinel Utilities](#sentinel-utilities)
+    * [sentinel.get_master](#sentinel_get_master)
+    * [sentinel.get_slaves](#sentinel_get_slaves)
 
 
 ### new
@@ -117,6 +124,46 @@ method.
 `syntax: redis, err = rc:connect(params)`
 
 Attempts to create a connection, according to the [params](#parameters) supplied.
+
+
+## Utilities
+
+### connect_via_sentinel
+
+`syntax: redis, err = rc:connect_via_sentinel(sentinels, master_name, role)`
+
+Returns a Redis connection by first accessing a sentinel as supplied by the `sentinels` table,
+and querying this with the `master_name` and `role`.
+
+
+### try_hosts
+
+`syntax: redis, err = rc:try_hosts(hosts)`
+
+Tries the hosts supplied in order and returns the first successful connection.
+
+
+### connect_to_host
+
+`syntax: redis, err = rc:connect_to_host(host)`
+
+Attempts to connect to the supplied `host`.
+
+
+## Sentinel Utilities
+
+### sentinel.get_master
+
+`syntax: master, err = sentinel.get_master(sentinel, master_name)`
+
+Given a connected Sentinel instance and a master name, will return the current master Redis instance.
+
+
+### sentinel.get_slaves
+
+`syntax: slaves, err = sentinel.get_slaves(sentinel, master_name)`
+
+Given a connected Sentinel instance and a master name, will return a list of registered slave Redis instances.
 
 
 ## TODO
