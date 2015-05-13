@@ -85,8 +85,8 @@ local redis, err = rc:connect{
     * [try_hosts](#try_hosts)
     * [connect_to_host](#connect_to_host)
 * [Sentinel Utilities](#sentinel-utilities)
-    * [sentinel.get_master](#sentinel_get_master)
-    * [sentinel.get_slaves](#sentinel_get_slaves)
+    * [sentinel.get_master](#sentinelget_master)
+    * [sentinel.get_slaves](#sentinelget_slaves)
 
 
 ### new
