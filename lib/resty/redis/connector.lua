@@ -28,14 +28,12 @@ local mt = { __index = _M }
 local DEFAULTS = {
     host = "127.0.0.1",
     port = 6379,
-    path = nil,
+    path = nil, -- /tmp/redis.sock
     password = nil,
     db = 0,
     master_name = "mymaster",
     role = "master", -- master | slave | any (tries master first, failover to a slave)
-    sentinels = nil, {
-        { host = "127.0.0.1", port = 6379 }
-    },
+    sentinels = nil,
     cluster_startup_nodes = {},
 }
 
@@ -59,7 +57,7 @@ function _M.set_read_timeout(self, timeout)
 end
 
 
-function _M.set_connect_options(self, options)
+function _M.set_connection_options(self, options)
     self.connection_options = options
 end
 
