@@ -11,6 +11,7 @@ local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
 local tbl_insert = table.insert
 local tbl_remove = table.remove
+local tbl_sort = table.sort
 
 local ok, tbl_new = pcall(require, "table.new")
 if not ok then
@@ -95,7 +96,7 @@ end
 
 function _M.connect(self, params)
     -- If we have nothing, assume default host connection options apply
-    if not params then
+    if not params or type(params) ~= "table" then
         params = {}
     end
 
@@ -113,6 +114,15 @@ function _M.connect(self, params)
     else
         setmetatable(params, { __index = DEFAULTS } )
         return self:connect_to_host(params)
+    end
+end
+
+
+local function sort_by_localhost(a, b)
+    if a.host == "127.0.0.1" then
+        return true
+    else
+        return false
     end
 end
 
@@ -146,6 +156,9 @@ function _M.connect_via_sentinel(self, sentinels, master_name, role)
         return nil, err
     end
 
+    -- Put any slaves on 127.0.0.1 at the front
+    tbl_sort(slaves, sort_by_localhost)
+
     local slave, err, previous_errors = self:try_hosts(slaves)
     if not slave then
         return nil, err, previous_errors
@@ -159,6 +172,7 @@ end
 -- the last error received, and previous_errors is a table of the previous errors.
 function _M.try_hosts(self, hosts)
     local errors = tbl_new(#hosts, 0)
+    
     for i, host in ipairs(hosts) do
         local r
         r, errors[i] = self:connect_to_host(host)
