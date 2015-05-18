@@ -12,6 +12,16 @@ local redis_connector = require "resty.redis.connector"
 local rc = redis_connector.new()
 
 local redis, err = rc:connect{ url = "redis://PASSWORD@127.0.0.1:6379/2" }
+
+-- or...
+
+local redis, err = rc:connect{
+    host = "127.0.0.1",
+    port = 6379,
+    db = 2,
+    password = "PASSWORD",
+}
+
 if not redis then
     ngx.log(ngx.ERR, err)
 end
@@ -34,9 +44,9 @@ When connecting via Redis Sentinel, the format is as follows:
 
 Again, `PASSWORD` and `DB` are optional. `ROLE` must be any of `m`, `s` or `a`, meaning:
 
-`m`: master
-`s`: slave
-`a`: any (first tries the master, but will failover to a slave if required)
+* `m`: master
+* `s`: slave
+* `a`: any (first tries the master, but will failover to a slave if required)
 
 
 ## Parameters
@@ -55,7 +65,7 @@ The defaults are as follows:
     password = "",
     db = 0,
     master_name = "mymaster",
-    role = "master",
+    role = "master", -- master | slave | any
     sentinels = nil,
 }
 ```
@@ -63,7 +73,7 @@ The defaults are as follows:
 Note that if `sentinel://` is supplied as the `url` parameter, a table of `sentinels` must also 
 be supplied. e.g.
 
-``lua
+```lua
 local redis, err = rc:connect{
     url = "sentinel://mymaster:a/2",
     sentinels = {
@@ -80,6 +90,13 @@ local redis, err = rc:connect{
 * [set_read_timeout](#set_read_timeout)
 * [set_connection_options](#set_connection_options)
 * [connect](#connect)
+* [Utilities](#utilities)
+    * [connect_via_sentinel](#connect_via_sentinel)
+    * [try_hosts](#try_hosts)
+    * [connect_to_host](#connect_to_host)
+* [Sentinel Utilities](#sentinel-utilities)
+    * [sentinel.get_master](#sentinelget_master)
+    * [sentinel.get_slaves](#sentinelget_slaves)
 
 
 ### new
@@ -119,6 +136,46 @@ method.
 Attempts to create a connection, according to the [params](#parameters) supplied.
 
 
+## Utilities
+
+### connect_via_sentinel
+
+`syntax: redis, err = rc:connect_via_sentinel(sentinels, master_name, role)`
+
+Returns a Redis connection by first accessing a sentinel as supplied by the `sentinels` table,
+and querying this with the `master_name` and `role`.
+
+
+### try_hosts
+
+`syntax: redis, err = rc:try_hosts(hosts)`
+
+Tries the hosts supplied in order and returns the first successful connection.
+
+
+### connect_to_host
+
+`syntax: redis, err = rc:connect_to_host(host)`
+
+Attempts to connect to the supplied `host`.
+
+
+## Sentinel Utilities
+
+### sentinel.get_master
+
+`syntax: master, err = sentinel.get_master(sentinel, master_name)`
+
+Given a connected Sentinel instance and a master name, will return the current master Redis instance.
+
+
+### sentinel.get_slaves
+
+`syntax: slaves, err = sentinel.get_slaves(sentinel, master_name)`
+
+Given a connected Sentinel instance and a master name, will return a list of registered slave Redis instances.
+
+
 ## TODO
 
 * Redis Cluster support.
@@ -133,7 +190,7 @@ James Hurst <james@pintsized.co.uk>
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2013, James Hurst <james@pintsized.co.uk>
+Copyright (c) 2015, James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
