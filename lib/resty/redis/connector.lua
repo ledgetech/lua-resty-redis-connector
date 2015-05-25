@@ -209,6 +209,15 @@ function _M.connect_to_host(self, host)
         return nil, err
     else
         r:set_timeout(self, self.read_timeout)
+        
+        if host.password then
+            local res, err = r:auth(host.password)
+            if not res then
+                ngx_log(ngx_ERR, err, " for password ", host.password)
+                return nil, err
+            end
+        end
+
         r:select(host.db)
         return r, nil
     end
