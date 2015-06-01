@@ -106,7 +106,7 @@ function _M.connect(self, params)
 
     if params.sentinels then
         setmetatable(params, { __index = DEFAULTS } )
-        return self:connect_via_sentinel(params.sentinels, params.master_name, params.role)
+        return self:connect_via_sentinel(params)
     elseif params.startup_cluster_nodes then
         setmetatable(params, { __index = DEFAULTS } )
         -- TODO: Implement cluster
@@ -127,7 +127,13 @@ local function sort_by_localhost(a, b)
 end
 
 
-function _M.connect_via_sentinel(self, sentinels, master_name, role)
+function _M.connect_via_sentinel(self, params)
+    local sentinels = params.sentinels
+    local master_name = params.master_name
+    local role = params.role
+    local db = params.db
+    local password = params.password
+
     local sentnl, err, previous_errors = self:try_hosts(sentinels)
     if not sentnl then
         return nil, err, previous_errors
@@ -136,6 +142,9 @@ function _M.connect_via_sentinel(self, sentinels, master_name, role)
     if role == "master" or role == "any" then
         local master, err = sentinel.get_master(sentnl, master_name)
         if master then
+            master.db = db
+            master.password = password
+
             local redis, err = self:connect_to_host(master)
             if redis then
                 sentnl:set_keepalive()
@@ -158,6 +167,13 @@ function _M.connect_via_sentinel(self, sentinels, master_name, role)
 
     -- Put any slaves on 127.0.0.1 at the front
     tbl_sort(slaves, sort_by_localhost)
+
+    if db or password then
+        for i,slave in ipairs(slaves) do
+            slave.db = db
+            slave.password = password
+        end
+    end
 
     local slave, err, previous_errors = self:try_hosts(slaves)
     if not slave then

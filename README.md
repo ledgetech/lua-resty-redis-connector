@@ -140,10 +140,10 @@ Attempts to create a connection, according to the [params](#parameters) supplied
 
 ### connect_via_sentinel
 
-`syntax: redis, err = rc:connect_via_sentinel(sentinels, master_name, role)`
+`syntax: redis, err = rc:connect_via_sentinel(params)`
 
-Returns a Redis connection by first accessing a sentinel as supplied by the `sentinels` table,
-and querying this with the `master_name` and `role`.
+Returns a Redis connection by first accessing a sentinel as supplied by the `params.sentinels` table,
+and querying this with the `params.master_name` and `params.role`.
 
 
 ### try_hosts
