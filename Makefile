@@ -13,7 +13,7 @@ REDIS_PID           = /redis.pid
 REDIS_LOG           = /redis.log
 REDIS_PREFIX        = /tmp/redis-
 
-# Overrideable ledge test variables
+# Overrideable redis test variables
 TEST_REDIS_PORTS              ?= 6379 6380
 TEST_REDIS_DATABASE           ?= 1
 
@@ -25,12 +25,12 @@ REDIS_CLI                           := redis-cli -p $(REDIS_FIRST_PORT) -n $(TES
 # (make test TEST_REDIS_SOCKET=/path/to/sock.sock)
 TEST_REDIS_SOCKET             ?= $(REDIS_PREFIX)$(REDIS_FIRST_PORT)$(REDIS_SOCK)
 
-# Overrideable ledge + sentinel test variables
+# Overrideable redis + sentinel test variables
 TEST_SENTINEL_PORTS           ?= 6381 6382 6383
 TEST_SENTINEL_MASTER_NAME     ?= mymaster
 TEST_SENTINEL_PROMOTION_TIME  ?= 20
 
-# Command line arguments for ledge tests
+# Command line arguments for redis tests
 TEST_REDIS_VARS     = PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$(PATH) \
 TEST_REDIS_SOCKET=unix://$(TEST_REDIS_SOCKET) \
 TEST_REDIS_DATABASE=$(TEST_REDIS_DATABASE) \
@@ -64,17 +64,17 @@ INSTALL         ?= install
 
 .PHONY: all install test test_all start_redis_instances stop_redis_instances \
 	start_redis_instance stop_redis_instance cleanup_redis_instance flush_db \
-	create_sentinel_config delete_sentinel_config check_ports test_ledge \
+	create_sentinel_config delete_sentinel_config check_ports test_redis \
 	test_sentinel
 
 all: ;
 
 install: all
-	$(INSTALL) -d $(DESTDIR)/$(LUA_LIB_DIR)/ledge
-	$(INSTALL) lib/ledge/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/ledge
+	$(INSTALL) -d $(DESTDIR)/$(LUA_LIB_DIR)/resty/redis
+	$(INSTALL) lib/resty/redis/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/resty/redis
 
-test: test_ledge
-test_all: start_redis_instances test_ledge test_sentinel stop_redis_instances
+test: test_redis
+test_all: start_redis_instances test_redis test_sentinel stop_redis_instances
 
 start_redis_instances: check_ports create_sentinel_config
 	@$(foreach port,$(TEST_REDIS_PORTS), \
@@ -136,7 +136,7 @@ check_ports:
 	-@echo "Checking ports $(REDIS_PORTS)"
 	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
-test_ledge: flush_db
+test_redis: flush_db
 	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	util/lua-releng
 
