@@ -226,8 +226,9 @@ function _M.connect_to_host(self, host)
     else
         r:set_timeout(self, self.read_timeout)
 
-        if host.password then
-            local res, err = r:auth(host.password)
+        local password = host.password
+        if password then
+            local res, err = r:auth(password)
             if err then
                 ngx_log(ngx_ERR, err)
                 return res, err
