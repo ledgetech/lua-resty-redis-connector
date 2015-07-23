@@ -9,7 +9,7 @@ end
 
 
 local _M = {}
-_M._VERSION = 0.01
+_M._VERSION = 0.02
 
 
 function _M.get_master(sentinel, master_name)
