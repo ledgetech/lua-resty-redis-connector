@@ -36,8 +36,11 @@ function _M.get_slaves(sentinel, master_name)
             for i = 1, num_recs, 2 do
                 host[slave[i]] = slave[i + 1]
             end
-            host.host = host.ip -- for parity with other functions
-            tbl_insert(hosts, host)
+
+            if host["master-link-status"] == "ok" then
+                host.host = host.ip -- for parity with other functions
+                tbl_insert(hosts, host)
+            end
         end
         if hosts[1] ~= nil then
             return hosts
