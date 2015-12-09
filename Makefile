@@ -14,7 +14,7 @@ REDIS_LOG           = /redis.log
 REDIS_PREFIX        = /tmp/redis-
 
 # Overrideable redis test variables
-TEST_REDIS_PORTS              ?= 6379 6380
+TEST_REDIS_PORTS              ?= 6379 6380 6378
 TEST_REDIS_DATABASE           ?= 1
 
 REDIS_FIRST_PORT                    := $(firstword $(TEST_REDIS_PORTS))
@@ -65,7 +65,7 @@ INSTALL         ?= install
 .PHONY: all install test test_all start_redis_instances stop_redis_instances \
 	start_redis_instance stop_redis_instance cleanup_redis_instance flush_db \
 	create_sentinel_config delete_sentinel_config check_ports test_redis \
-	test_sentinel
+	test_sentinel sleep
 
 all: ;
 
@@ -74,7 +74,10 @@ install: all
 	$(INSTALL) lib/resty/redis/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/resty/redis
 
 test: test_redis
-test_all: start_redis_instances test_redis test_sentinel stop_redis_instances
+test_all: start_redis_instances sleep test_redis stop_redis_instances
+
+sleep:
+	sleep 3
 
 start_redis_instances: check_ports create_sentinel_config
 	@$(foreach port,$(TEST_REDIS_PORTS), \
@@ -90,6 +93,7 @@ start_redis_instances: check_ports create_sentinel_config
 		port=$(port) args="$(SENTINEL_CONFIG_FILE) --sentinel" \
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true
+
 
 stop_redis_instances: delete_sentinel_config 
 	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
@@ -139,13 +143,6 @@ check_ports:
 test_redis: flush_db
 	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	util/lua-releng
-
-test_sentinel: flush_db
-	$(TEST_SENTINEL_VARS) $(PROVE) $(SENTINEL_TEST_FILE)/01-master_up.t
-	$(REDIS_CLI) shutdown
-	$(TEST_SENTINEL_VARS) $(PROVE) $(SENTINEL_TEST_FILE)/02-master_down.t
-	sleep $(TEST_SENTINEL_PROMOTION_TIME)
-	$(TEST_SENTINEL_VARS) $(PROVE) $(SENTINEL_TEST_FILE)/03-slave_promoted.t
 
 test_leak: flush_db
 	$(TEST_REDIS_VARS) TEST_NGINX_CHECK_LEAK=1 $(PROVE) $(TEST_FILE)
