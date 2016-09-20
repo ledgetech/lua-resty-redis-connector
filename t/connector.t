@@ -78,7 +78,7 @@ set dog: OK
                 ngx.say("failed to connect: ", err)
                 return
             end
-            
+
             -- Print the failed connection errors
             ngx.say("connection 1 error: ", err)
 
@@ -149,8 +149,8 @@ set dog: OK
             local redis_connector = require "resty.redis.connector"
             local rc = redis_connector.new()
 
-            local host = { 
-                host = "127.0.0.1", 
+            local host = {
+                host = "127.0.0.1",
                 port = $TEST_NGINX_REDIS_PORT,
                 db = 1,
             }
@@ -160,7 +160,7 @@ set dog: OK
                 ngx.say("failed to connect: ", err)
                 return
             end
-            
+
             local res, err = redis:set("dog", "an animal")
             if not res then
                 ngx.say("failed to set dog: ", err)

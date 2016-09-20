@@ -21,7 +21,7 @@ REDIS_FIRST_PORT                    := $(firstword $(TEST_REDIS_PORTS))
 REDIS_SLAVE_ARG                     := --slaveof 127.0.0.1 $(REDIS_FIRST_PORT)
 REDIS_CLI                           := redis-cli -p $(REDIS_FIRST_PORT) -n $(TEST_REDIS_DATABASE)
 
-# Override socket for running make test on its own 
+# Override socket for running make test on its own
 # (make test TEST_REDIS_SOCKET=/path/to/sock.sock)
 TEST_REDIS_SOCKET             ?= $(REDIS_PREFIX)$(REDIS_FIRST_PORT)$(REDIS_SOCK)
 
@@ -95,7 +95,7 @@ start_redis_instances: check_ports create_sentinel_config
 	) true
 
 
-stop_redis_instances: delete_sentinel_config 
+stop_redis_instances: delete_sentinel_config
 	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
 		$(MAKE) stop_redis_instance cleanup_redis_instance port=$(port) \
 		prefix=$(REDIS_PREFIX)$(port) && \

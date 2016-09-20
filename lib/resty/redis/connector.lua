@@ -77,12 +77,12 @@ local function parse_dsn(params)
             elseif m[1] == "sentinel" then
                 fields = { "password", "master_name", "role", "db" }
             end
-            
+
             -- password may not be present
             if #m < 5 then tbl_remove(fields, 1) end
 
             local roles = { m = "master", s = "slave", a = "any" }
-            
+
             for i,v in ipairs(fields) do
                 params[v] = m[i + 1]
                 if v == "role" then
@@ -100,8 +100,8 @@ function _M.connect(self, params)
         params = {}
     end
 
-    if params.url then 
-        parse_dsn(params) 
+    if params.url then
+        parse_dsn(params)
     end
 
     if params.sentinels then
@@ -188,7 +188,7 @@ end
 -- the last error received, and previous_errors is a table of the previous errors.
 function _M.try_hosts(self, hosts)
     local errors = tbl_new(#hosts, 0)
-    
+
     for i, host in ipairs(hosts) do
         local r
         r, errors[i] = self:connect_to_host(host)

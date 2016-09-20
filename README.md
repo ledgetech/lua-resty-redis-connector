@@ -1,7 +1,7 @@
 # lua-resty-redis-connector
 
 Connection utilities for [lua-resty-redis](https://github.com/openresty/lua-resty-redis), making
-it easy and reliable to connect to Redis hosts, either directly or via 
+it easy and reliable to connect to Redis hosts, either directly or via
 [Redis Sentinel](http://redis.io/topics/sentinel).
 
 
@@ -70,7 +70,7 @@ The defaults are as follows:
 }
 ```
 
-Note that if `sentinel://` is supplied as the `url` parameter, a table of `sentinels` must also 
+Note that if `sentinel://` is supplied as the `url` parameter, a table of `sentinels` must also
 be supplied. e.g.
 
 ```lua
@@ -190,7 +190,7 @@ James Hurst <james@pintsized.co.uk>
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2015, James Hurst <james@pintsized.co.uk>
+Copyright (c) James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
