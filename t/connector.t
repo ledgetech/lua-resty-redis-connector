@@ -1,5 +1,3 @@
-# vim:set ft= ts=4 sw=4 et:
-
 use Test::Nginx::Socket::Lua;
 use Cwd qw(cwd);
 
@@ -17,8 +15,6 @@ $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
 
 no_long_string();
-#no_diff();
-
 run_tests();
 
 __DATA__
@@ -26,32 +22,32 @@ __DATA__
 === TEST 1: basic
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+location /t {
+    content_by_lua_block {
+        local redis_connector = require "resty.redis.connector"
+        local rc = redis_connector.new()
 
-            local params = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
+        local params = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
-            local redis, err = rc:connect(params)
-            if not redis then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+        local redis, err = rc:connect(params)
+        if not redis then
+            ngx.say("failed to connect: ", err)
+            return
+        end
 
-            local res, err = redis:set("dog", "an animal")
-            if not res then
-                ngx.say("failed to set dog: ", err)
-                return
-            end
+        local res, err = redis:set("dog", "an animal")
+        if not res then
+            ngx.say("failed to set dog: ", err)
+            return
+        end
 
-            ngx.say("set dog: ", res)
+        ngx.say("set dog: ", res)
 
-            redis:close()
-        ';
+        redis:close()
     }
+}
 --- request
-    GET /t
+GET /t
 --- response_body
 set dog: OK
 --- no_error_log
@@ -61,41 +57,41 @@ set dog: OK
 === TEST 2: test we can try a list of hosts, and connect to the first working one
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
-            rc:set_connect_timeout(100)
+location /t {
+    content_by_lua_block {
+        local redis_connector = require "resty.redis.connector"
+        local rc = redis_connector.new()
+        rc:set_connect_timeout(100)
 
-            local hosts = {
-                { host = "127.0.0.1", port = 1 },
-                { host = "127.0.0.1", port = 2 },
-                { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT },
-            }
+        local hosts = {
+            { host = "127.0.0.1", port = 1 },
+            { host = "127.0.0.1", port = 2 },
+            { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT },
+        }
 
-            local redis, err, previous_errors = rc:try_hosts(hosts)
-            if not redis then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+        local redis, err, previous_errors = rc:try_hosts(hosts)
+        if not redis then
+            ngx.say("failed to connect: ", err)
+            return
+        end
 
-            -- Print the failed connection errors
-            ngx.say("connection 1 error: ", err)
+        -- Print the failed connection errors
+        ngx.say("connection 1 error: ", err)
 
-            ngx.say("connection 2 error: ", previous_errors[1])
+        ngx.say("connection 2 error: ", previous_errors[1])
 
-            local res, err = redis:set("dog", "an animal")
-            if not res then
-                ngx.say("failed to set dog: ", err)
-                return
-            end
+        local res, err = redis:set("dog", "an animal")
+        if not res then
+            ngx.say("failed to set dog: ", err)
+            return
+        end
 
-            ngx.say("set dog: ", res)
+        ngx.say("set dog: ", res)
 
 
-            redis:close()
-        ';
+        redis:close()
     }
+}
 --- request
     GET /t
 --- response_body
@@ -109,30 +105,30 @@ set dog: OK
 === TEST 3: Test connect_to_host directly
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+location /t {
+    content_by_lua_block {
+        local redis_connector = require "resty.redis.connector"
+        local rc = redis_connector.new()
 
-            local host = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
+        local host = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
-            local redis, err = rc:connect_to_host(host)
-            if not redis then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+        local redis, err = rc:connect_to_host(host)
+        if not redis then
+            ngx.say("failed to connect: ", err)
+            return
+        end
 
-            local res, err = redis:set("dog", "an animal")
-            if not res then
-                ngx.say("failed to set dog: ", err)
-                return
-            end
+        local res, err = redis:set("dog", "an animal")
+        if not res then
+            ngx.say("failed to set dog: ", err)
+            return
+        end
 
-            ngx.say("set dog: ", res)
+        ngx.say("set dog: ", res)
 
-            redis:close()
-        ';
-    }
+        redis:close()
+        }
+}
 --- request
     GET /t
 --- response_body
@@ -144,40 +140,40 @@ set dog: OK
 === TEST 4: Test connect options override
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+location /t {
+    content_by_lua_block {
+        local redis_connector = require "resty.redis.connector"
+        local rc = redis_connector.new()
 
-            local host = {
-                host = "127.0.0.1",
-                port = $TEST_NGINX_REDIS_PORT,
-                db = 1,
-            }
+        local host = {
+            host = "127.0.0.1",
+            port = $TEST_NGINX_REDIS_PORT,
+            db = 1,
+        }
 
-            local redis, err = rc:connect_to_host(host)
-            if not redis then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+        local redis, err = rc:connect_to_host(host)
+        if not redis then
+            ngx.say("failed to connect: ", err)
+            return
+        end
 
-            local res, err = redis:set("dog", "an animal")
-            if not res then
-                ngx.say("failed to set dog: ", err)
-                return
-            end
+        local res, err = redis:set("dog", "an animal")
+        if not res then
+            ngx.say("failed to set dog: ", err)
+            return
+        end
 
-            ngx.say("set dog: ", res)
+        ngx.say("set dog: ", res)
 
-            redis:select(2)
-            ngx.say(redis:get("dog"))
+        redis:select(2)
+        ngx.say(redis:get("dog"))
 
-            redis:select(1)
-            ngx.say(redis:get("dog"))
+        redis:select(1)
+        ngx.say(redis:get("dog"))
 
-            redis:close()
-        ';
+        redis:close()
     }
+}
 --- request
     GET /t
 --- response_body
