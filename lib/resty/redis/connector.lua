@@ -89,17 +89,19 @@ local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
     connection_options = nil, -- pool, etc
-
-    -- TODO Keepalive settings
+    keepalive_timeout = 60000,
+    keepalive_poolsize = 30,
 
     host = "127.0.0.1",
     port = 6379,
-    path = nil, -- /tmp/redis.sock
-    password = nil,
+    path = "", -- /tmp/redis.sock
+    password = "",
     db = 0,
+
     master_name = "mymaster",
-    role = "master", -- master | slave | any (tries master first, failover to a slave)
-    sentinels = nil,
+    role = "master",  -- master | slave | any
+    sentinels = {},
+
     cluster_startup_nodes = {},
 }, fixed_field_metatable)
 
@@ -176,7 +178,7 @@ function _M.connect(self, params)
         parse_dsn(params)
     end
 
-    if params.sentinels then
+    if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
     elseif params.startup_cluster_nodes then
         -- TODO: Implement cluster
@@ -296,7 +298,7 @@ function _M.connect_to_host(self, host)
         r:set_timeout(self, self.read_timeout)
 
         local password = host.password
-        if password then
+        if password and password ~= "" then
             local res, err = r:auth(password)
             if err then
                 ngx_log(ngx_ERR, err)
