@@ -141,8 +141,8 @@ check_ports:
 	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
 test_redis: flush_db
-	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	util/lua-releng
+	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 
 test_leak: flush_db
 	$(TEST_REDIS_VARS) TEST_NGINX_CHECK_LEAK=1 $(PROVE) $(TEST_FILE)
