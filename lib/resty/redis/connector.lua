@@ -85,7 +85,7 @@ end
 local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
-    connection_options = nil, -- pool, etc
+    connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
 
@@ -171,7 +171,7 @@ end
 
 
 function _M.connect(self, params)
-    local params = tbl_copy_merge_defaults(params, DEFAULTS)
+    local params = tbl_copy_merge_defaults(params, self.config)
 
     if params.url then
         parse_dsn(params)
@@ -276,14 +276,15 @@ function _M.connect_to_host(self, host)
 
     local ok, err
     local socket = host.socket
+    local opts = self.connection_options
     if socket then
-        if self.connection_options then
+        if opts then
             ok, err = r:connect(socket, self.connection_options)
         else
             ok, err = r:connect(socket)
         end
     else
-        if self.connection_options then
+        if opts then
             ok, err = r:connect(host.host, host.port, self.connection_options)
         else
             ok, err = r:connect(host.host, host.port)
