@@ -24,8 +24,7 @@ __DATA__
 --- config
 location /t {
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+        local rc = require("resty.redis.connector").new()
 
         local params = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
@@ -127,7 +126,7 @@ location /t {
         ngx.say("set dog: ", res)
 
         redis:close()
-        }
+    }
 }
 --- request
     GET /t
