@@ -101,6 +101,30 @@ location /t {
 
         assert(rc == nil, "rc should be nil")
         assert(err == "field foo does not exist", "err should contain error")
+
+
+        -- Provide all options, without errors
+
+        assert(require("resty.redis.connector").new({
+            connect_timeout = 100,
+            read_timeout = 1000,
+            connection_options = {},
+            keepalive_timeout = 60000,
+            keepalive_poolsize = 30,
+
+            host = "127.0.0.1",
+            port = 6379,
+            path = "", -- /tmp/redis.sock
+            password = "",
+            db = 0,
+
+            url = "", -- DSN url
+
+            master_name = "mymaster",
+            role = "master",  -- master | slave | any
+            sentinels = {},
+        }), "new should return positively")
+
     }
 }
 --- request
