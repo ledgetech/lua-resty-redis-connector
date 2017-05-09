@@ -95,6 +95,8 @@ local DEFAULTS = setmetatable({
     password = "",
     db = 0,
 
+    url = "", -- DSN url
+
     master_name = "mymaster",
     role = "master",  -- master | slave | any
     sentinels = {},
@@ -139,7 +141,7 @@ end
 
 local function parse_dsn(params)
     local url = params.url
-    if url then
+    if url and url ~= "" then
         local url_pattern = [[^(?:(redis|sentinel)://)(?:([^@]*)@)?([^:/]+)(?::(\d+|[msa]+))/?(.*)$]]
         local m, err = ngx_re_match(url, url_pattern, "")
         if not m then
