@@ -19,14 +19,79 @@ if not ok then
 end
 
 
-local _M = {
-    _VERSION = '0.03',
+-- A metatable which prevents undefined fields from being created / accessed
+local fixed_field_metatable = {
+    __index =
+        function(t, k)
+            error("field " .. tostring(k) .. " does not exist", 3)
+        end,
+    __newindex =
+        function(t, k, v)
+            error("attempt to create new field " .. tostring(k), 3)
+        end,
 }
 
-local mt = { __index = _M }
+
+-- Returns a new table, recursively copied from the one given, retaining
+-- metatable assignment.
+--
+-- @param   table   table to be copied
+-- @return  table
+local function tbl_copy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == "table" then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[tbl_copy(orig_key)] = tbl_copy(orig_value)
+        end
+        setmetatable(copy, tbl_copy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
 
 
-local DEFAULTS = {
+-- Returns a new table, recursively copied from the combination of the given
+-- table `t1`, with any missing fields copied from `defaults`.
+--
+-- If `defaults` is of type "fixed field" and `t1` contains a field name not
+-- present in the defults, an error will be thrown.
+--
+-- @param   table   t1
+-- @param   table   defaults
+-- @return  table   a new table, recursively copied and merged
+local function tbl_copy_merge_defaults(t1, defaults)
+    if t1 == nil then t1 = {} end
+    if defaults == nil then defaults = {} end
+    if type(t1) == "table" and type(defaults) == "table" then
+        local mt = getmetatable(defaults)
+        local copy = {}
+        for t1_key, t1_value in next, t1, nil do
+            copy[tbl_copy(t1_key)] = tbl_copy_merge_defaults(
+                t1_value, tbl_copy(defaults[t1_key])
+            )
+        end
+        for defaults_key, defaults_value in next, defaults, nil do
+            if t1[defaults_key] == nil then
+                copy[tbl_copy(defaults_key)] = tbl_copy(defaults_value)
+            end
+        end
+        return copy
+    else
+        return t1 -- not a table
+    end
+end
+
+
+local DEFAULTS = setmetatable({
+    connect_timeout = 100,
+    read_timeout = 1000,
+    connection_options = nil, -- pool, etc
+
+    -- TODO Keepalive settings
+
     host = "127.0.0.1",
     port = 6379,
     path = nil, -- /tmp/redis.sock
@@ -36,15 +101,25 @@ local DEFAULTS = {
     role = "master", -- master | slave | any (tries master first, failover to a slave)
     sentinels = nil,
     cluster_startup_nodes = {},
+}, fixed_field_metatable)
+
+
+local _M = {
+    _VERSION = '0.03',
 }
 
+local mt = { __index = _M }
 
-function _M.new()
-    return setmetatable({
-        connect_timeout = 100,
-        read_timeout = 1000,
-        connection_options = nil, -- pool, etc
-    }, mt)
+
+function _M.new(config)
+    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
+    if not ok then
+        return nil, config  -- err
+    else
+        return setmetatable({
+            config = config
+        }, mt)
+    end
 end
 
 
@@ -95,24 +170,18 @@ end
 
 
 function _M.connect(self, params)
-    -- If we have nothing, assume default host connection options apply
-    if not params or type(params) ~= "table" then
-        params = {}
-    end
+    local params = tbl_copy_merge_defaults(params, DEFAULTS)
 
     if params.url then
         parse_dsn(params)
     end
 
     if params.sentinels then
-        setmetatable(params, { __index = DEFAULTS } )
         return self:connect_via_sentinel(params)
     elseif params.startup_cluster_nodes then
-        setmetatable(params, { __index = DEFAULTS } )
         -- TODO: Implement cluster
         return nil, "Redis Cluster not yet implemented"
     else
-        setmetatable(params, { __index = DEFAULTS } )
         return self:connect_to_host(params)
     end
 end
