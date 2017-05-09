@@ -1,6 +1,4 @@
-# vim:set ft= ts=4 sw=4 et:
-
-use Test::Nginx::Socket::Lua;
+use Test::Nginx::Socket::Lua skip_all => "sentinels not running";
 use Cwd qw(cwd);
 
 #repeat_each(2);
