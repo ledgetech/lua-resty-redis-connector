@@ -86,6 +86,7 @@ local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
     connection_options = {}, -- pool, etc
+
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
 
@@ -312,6 +313,19 @@ function _M.connect_to_host(self, host)
         return r, nil
     end
 end
+
+
+local function set_keepalive(self, redis)
+    -- Restore connection to "NORMAL" before putting into keepalive pool,
+    -- ignoring any errors.
+    redis:discard()
+
+    local config = self.config
+    return redis:set_keepalive(
+        config.keepalive_timeout, config.keepalive_poolsize
+    )
+end
+_M.set_keepalive = set_keepalive
 
 
 return _M

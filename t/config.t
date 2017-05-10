@@ -70,12 +70,15 @@ location /t {
             connect_timeout = 500,
             port = 6380,
             db = 6,
+            keepalive_poolsize = 10,
         })
 
         assert(config ~= rc.config, "config should not equal rc.config")
         assert(rc.config.connect_timeout == 500, "connect_timeout should be 500")
         assert(rc.config.db == 6, "db should be 6")
         assert(rc.config.role == "master", "role should be master")
+        assert(rc.config.keepalive_poolsize == 10,
+            "keepalive_poolsize should be 10")
 
         local redis = assert(rc:connect({ port = 6379 }),
             "rc:connect should return positively")
