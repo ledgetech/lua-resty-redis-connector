@@ -87,7 +87,7 @@ GET /t
 [error]
 
 
-=== TEST 4: Unknown config keys should return an error
+=== TEST 4: Unknown config errors, all config does not
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -102,29 +102,51 @@ location /t {
         assert(rc == nil, "rc should be nil")
         assert(err == "field foo does not exist", "err should contain error")
 
-
         -- Provide all options, without errors
 
         assert(require("resty.redis.connector").new({
             connect_timeout = 100,
             read_timeout = 1000,
-            connection_options = {},
+            connection_options = { pool = "<host>::<port>" },
             keepalive_timeout = 60000,
             keepalive_poolsize = 30,
 
             host = "127.0.0.1",
             port = 6379,
-            path = "", -- /tmp/redis.sock
+            path = "",
             password = "",
             db = 0,
 
-            url = "", -- DSN url
+            url = "",
 
             master_name = "mymaster",
-            role = "master",  -- master | slave | any
+            role = "master",
             sentinels = {},
         }), "new should return positively")
 
+        -- Provide all options via connect, without errors
+
+        local rc = require("resty.redis.connector").new()
+
+        assert(rc:connect({
+            connect_timeout = 100,
+            read_timeout = 1000,
+            connection_options = { pool = "<host>::<port>" },
+            keepalive_timeout = 60000,
+            keepalive_poolsize = 30,
+
+            host = "127.0.0.1",
+            port = 6379,
+            path = "",
+            password = "",
+            db = 0,
+
+            url = "",
+
+            master_name = "mymaster",
+            role = "master",
+            sentinels = {},
+        }), "rc:connect should return positively")
     }
 }
 --- request
