@@ -102,7 +102,7 @@ local DEFAULTS = setmetatable({
     role = "master",  -- master | slave | any
     sentinels = {},
 
-    cluster_startup_nodes = {},
+    cluster_startup_nodes = {},  -- TODO remove this until implemented?
 }, fixed_field_metatable)
 
 
@@ -144,30 +144,33 @@ local function parse_dsn(params)
     local url = params.url
     if url and url ~= "" then
         local url_pattern = [[^(?:(redis|sentinel)://)(?:([^@]*)@)?([^:/]+)(?::(\d+|[msa]+))/?(.*)$]]
-        local m, err = ngx_re_match(url, url_pattern, "")
+
+        local m, err = ngx_re_match(url, url_pattern, "oj")
         if not m then
-            ngx_log(ngx_ERR, "could not parse DSN: ", err)
-        else
-            local fields
-            if m[1] == "redis" then
-                fields = { "password", "host", "port", "db" }
-            elseif m[1] == "sentinel" then
-                fields = { "password", "master_name", "role", "db" }
-            end
+            return nil, "could not parse DSN: " .. err
+        end
 
-            -- password may not be present
-            if #m < 5 then tbl_remove(fields, 1) end
+        local fields
+        if m[1] == "redis" then
+            fields = { "password", "host", "port", "db" }
+        elseif m[1] == "sentinel" then
+            fields = { "password", "master_name", "role", "db" }
+        end
 
-            local roles = { m = "master", s = "slave", a = "any" }
+        -- password may not be present
+        if #m < 5 then tbl_remove(fields, 1) end
 
-            for i,v in ipairs(fields) do
-                params[v] = m[i + 1]
-                if v == "role" then
-                    params[v] = roles[params[v]]
-                end
+        local roles = { m = "master", s = "slave", a = "any" }
+
+        for i,v in ipairs(fields) do
+            params[v] = m[i + 1]
+            if v == "role" then
+                params[v] = roles[params[v]]
             end
         end
     end
+
+    return true, nil
 end
 
 
@@ -175,7 +178,8 @@ function _M.connect(self, params)
     local params = tbl_copy_merge_defaults(params, self.config)
 
     if params.url then
-        parse_dsn(params)
+        local ok, err = parse_dsn(params)
+        if not ok then ngx_log(ngx_ERR, err) end
     end
 
     if #params.sentinels > 0 then
