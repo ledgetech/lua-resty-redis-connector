@@ -1,7 +1,5 @@
-use Test::Nginx::Socket::Lua skip_all => "sentinels not running";
+use Test::Nginx::Socket;
 use Cwd qw(cwd);
-
-#repeat_each(2);
 
 plan tests => repeat_each() * (3 * blocks());
 
@@ -15,7 +13,6 @@ $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
 
 no_long_string();
-#no_diff();
 
 run_tests();
 
