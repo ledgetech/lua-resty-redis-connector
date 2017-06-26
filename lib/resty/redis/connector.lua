@@ -235,7 +235,9 @@ function _M.connect_to_host(self, host)
             end
         end
 
-        r:select(host.db)
+        if host.db ~= nil then
+            r:select(host.db)
+        end
         return r, nil
     end
 end
