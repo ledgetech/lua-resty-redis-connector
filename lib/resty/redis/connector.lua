@@ -4,12 +4,9 @@ local sentinel = require "resty.redis.sentinel"
 
 
 local ipairs, setmetatable, pcall = ipairs, setmetatable, pcall
-local ngx_null = ngx.null
 local ngx_log = ngx.log
-local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
-local tbl_insert = table.insert
 local tbl_remove = table.remove
 local tbl_sort = table.sort
 
