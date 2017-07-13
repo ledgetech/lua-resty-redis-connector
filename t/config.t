@@ -8,7 +8,11 @@ plan tests => repeat_each() * blocks() * 2;
 my $pwd = cwd();
 
 our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
+lua_package_path "$pwd/lib/?.lua;;";
+
+init_by_lua_block {
+    require("luacov.runner").init()
+}
 };
 
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;

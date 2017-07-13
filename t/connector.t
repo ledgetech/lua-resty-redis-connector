@@ -4,7 +4,11 @@ use Cwd qw(cwd);
 my $pwd = cwd();
 
 our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
+lua_package_path "$pwd/lib/?.lua;;";
+
+init_by_lua_block {
+    require("luacov.runner").init()
+}
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
