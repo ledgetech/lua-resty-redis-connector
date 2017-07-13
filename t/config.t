@@ -103,7 +103,8 @@ location /t {
         })
 
         assert(rc == nil, "rc should be nil")
-        assert(err == "field foo does not exist", "err should contain error")
+        assert(string.find(err, "field foo does not exist"),
+            "err should contain error")
 
         -- Provide all options, without errors
 
