@@ -262,13 +262,15 @@ function _M.try_hosts(self, hosts)
     local errors = tbl_new(#hosts, 0)
 
     for i, host in ipairs(hosts) do
-        local r
-        r, errors[i] = self:connect_to_host(host)
-        if r then
-            return r, tbl_remove(errors), errors
+        local r, err = self:connect_to_host(host)
+        if r and not err then
+            return r, nil, errors
+        else
+            errors[i] = err
         end
     end
-    return nil, tbl_remove(errors), errors
+
+    return nil, "no hosts available", errors
 end
 
 
@@ -295,7 +297,6 @@ function _M.connect_to_host(self, host)
     end
 
     if not ok then
-        ngx_log(ngx_ERR, err, " for ", host.host, ":", host.port)
         return nil, err
     else
         r:set_timeout(self, config.read_timeout)
