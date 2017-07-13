@@ -142,7 +142,10 @@ check_ports:
 
 test_redis: flush_db
 	util/lua-releng
+	@rm -f luacov.stats.out
 	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
+	@luacov
+	@tail -7 luacov.report.out
 
 test_leak: flush_db
 	$(TEST_REDIS_VARS) TEST_NGINX_CHECK_LEAK=1 $(PROVE) $(TEST_FILE)
