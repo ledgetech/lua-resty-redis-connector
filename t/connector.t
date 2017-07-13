@@ -1,9 +1,7 @@
 use Test::Nginx::Socket::Lua;
 use Cwd qw(cwd);
 
-repeat_each(2);
-
-plan tests => repeat_each() * (3 * blocks());
+plan tests => repeat_each() * (3 * blocks() - 1);
 
 my $pwd = cwd();
 
@@ -24,8 +22,7 @@ __DATA__
 --- config
 location /t {
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+        local rc = require("resty.redis.connector").new()
 
         local params = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
@@ -127,7 +124,7 @@ location /t {
         ngx.say("set dog: ", res)
 
         redis:close()
-        }
+    }
 }
 --- request
     GET /t
@@ -180,5 +177,38 @@ location /t {
 set dog: OK
 null
 an animal
+--- no_error_log
+[error]
+
+
+=== TEST 5: Test set_keepalive method
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+
+        local redis = assert(rc:connect(),
+            "rc:connect should return positively")
+        local ok, err = rc:set_keepalive(redis)
+        assert(not err, "set_keepalive error should be nil")
+
+        local ok, err = redis:set("foo", "bar")
+        assert(not ok, "ok should be nil")
+        assert(string.find(err, "closed"), "error should contain 'closed'")
+
+        local redis = assert(rc:connect(), "connect should return positively")
+        assert(redis:subscribe("channel"), "subscribe should return positively")
+
+        local ok, err = rc:set_keepalive(redis)
+        assert(not ok, "ok should be nil")
+        assert(string.find(err, "subscribed state"),
+            "error should contain 'subscribed state'")
+
+    }
+}
+--- request
+GET /t
 --- no_error_log
 [error]

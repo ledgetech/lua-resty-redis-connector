@@ -19,6 +19,96 @@ if not ok then
 end
 
 
+-- A metatable which prevents undefined fields from being created / accessed
+local fixed_field_metatable = {
+    __index =
+        function(t, k)
+            error("field " .. tostring(k) .. " does not exist", 2)
+        end,
+    __newindex =
+        function(t, k, v)
+            error("attempt to create new field " .. tostring(k), 2)
+        end,
+}
+
+
+-- Returns a new table, recursively copied from the one given, retaining
+-- metatable assignment.
+--
+-- @param   table   table to be copied
+-- @return  table
+local function tbl_copy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == "table" then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[tbl_copy(orig_key)] = tbl_copy(orig_value)
+        end
+        setmetatable(copy, tbl_copy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+
+-- Returns a new table, recursively copied from the combination of the given
+-- table `t1`, with any missing fields copied from `defaults`.
+--
+-- If `defaults` is of type "fixed field" and `t1` contains a field name not
+-- present in the defults, an error will be thrown.
+--
+-- @param   table   t1
+-- @param   table   defaults
+-- @return  table   a new table, recursively copied and merged
+local function tbl_copy_merge_defaults(t1, defaults)
+    if t1 == nil then t1 = {} end
+    if defaults == nil then defaults = {} end
+    if type(t1) == "table" and type(defaults) == "table" then
+        local mt = getmetatable(defaults)
+        local copy = {}
+        for t1_key, t1_value in next, t1, nil do
+            copy[tbl_copy(t1_key)] = tbl_copy_merge_defaults(
+                t1_value, tbl_copy(defaults[t1_key])
+            )
+        end
+        for defaults_key, defaults_value in next, defaults, nil do
+            if t1[defaults_key] == nil then
+                copy[tbl_copy(defaults_key)] = tbl_copy(defaults_value)
+            end
+        end
+        return copy
+    else
+        return t1 -- not a table
+    end
+end
+
+
+local DEFAULTS = setmetatable({
+    connect_timeout = 100,
+    read_timeout = 1000,
+    connection_options = {}, -- pool, etc
+
+    keepalive_timeout = 60000,
+    keepalive_poolsize = 30,
+
+    host = "127.0.0.1",
+    port = 6379,
+    path = "", -- /tmp/redis.sock
+    password = "",
+    db = 0,
+
+    url = "", -- DSN url
+
+    master_name = "mymaster",
+    role = "master",  -- master | slave | any
+    sentinels = {},
+
+    cluster_startup_nodes = {},  -- TODO remove this until implemented?
+}, fixed_field_metatable)
+
+
 local _M = {
     _VERSION = '0.03',
 }
@@ -26,93 +116,78 @@ local _M = {
 local mt = { __index = _M }
 
 
-local DEFAULTS = {
-    host = "127.0.0.1",
-    port = 6379,
-    path = nil, -- /tmp/redis.sock
-    password = nil,
-    db = 0,
-    master_name = "mymaster",
-    role = "master", -- master | slave | any (tries master first, failover to a slave)
-    sentinels = nil,
-    cluster_startup_nodes = {},
-}
-
-
-function _M.new()
-    return setmetatable({
-        connect_timeout = 100,
-        read_timeout = 1000,
-        connection_options = nil, -- pool, etc
-    }, mt)
+function _M.new(config)
+    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
+    if not ok then
+        return nil, config  -- err
+    else
+        return setmetatable({
+            config = config
+        }, mt)
+    end
 end
 
 
 function _M.set_connect_timeout(self, timeout)
-    self.connect_timeout = timeout
+    self.config.connect_timeout = timeout
 end
 
 
 function _M.set_read_timeout(self, timeout)
-    self.read_timeout = timeout
+    self.config.read_timeout = timeout
 end
 
 
 function _M.set_connection_options(self, options)
-    self.connection_options = options
+    self.config.connection_options = options
 end
 
 
 local function parse_dsn(params)
     local url = params.url
-    if url then
+    if url and url ~= "" then
         local url_pattern = [[^(?:(redis|sentinel)://)(?:([^@]*)@)?([^:/]+)(?::(\d+|[msa]+))/?(.*)$]]
-        local m, err = ngx_re_match(url, url_pattern, "")
+
+        local m, err = ngx_re_match(url, url_pattern, "oj")
         if not m then
-            ngx_log(ngx_ERR, "could not parse DSN: ", err)
-        else
-            local fields
-            if m[1] == "redis" then
-                fields = { "password", "host", "port", "db" }
-            elseif m[1] == "sentinel" then
-                fields = { "password", "master_name", "role", "db" }
-            end
+            return nil, "could not parse DSN: " .. err
+        end
 
-            -- password may not be present
-            if #m < 5 then tbl_remove(fields, 1) end
+        local fields
+        if m[1] == "redis" then
+            fields = { "password", "host", "port", "db" }
+        elseif m[1] == "sentinel" then
+            fields = { "password", "master_name", "role", "db" }
+        end
 
-            local roles = { m = "master", s = "slave", a = "any" }
+        -- password may not be present
+        if #m < 5 then tbl_remove(fields, 1) end
 
-            for i,v in ipairs(fields) do
-                params[v] = m[i + 1]
-                if v == "role" then
-                    params[v] = roles[params[v]]
-                end
+        local roles = { m = "master", s = "slave", a = "any" }
+
+        for i,v in ipairs(fields) do
+            params[v] = m[i + 1]
+            if v == "role" then
+                params[v] = roles[params[v]]
             end
         end
     end
+
+    return true, nil
 end
 
 
 function _M.connect(self, params)
-    -- If we have nothing, assume default host connection options apply
-    if not params or type(params) ~= "table" then
-        params = {}
-    end
+    local params = tbl_copy_merge_defaults(params, self.config)
 
     if params.url then
-        parse_dsn(params)
+        local ok, err = parse_dsn(params)
+        if not ok then ngx_log(ngx_ERR, err) end
     end
 
-    if params.sentinels then
-        setmetatable(params, { __index = DEFAULTS } )
+    if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
-    elseif params.startup_cluster_nodes then
-        setmetatable(params, { __index = DEFAULTS } )
-        -- TODO: Implement cluster
-        return nil, "Redis Cluster not yet implemented"
     else
-        setmetatable(params, { __index = DEFAULTS } )
         return self:connect_to_host(params)
     end
 end
@@ -202,19 +277,21 @@ end
 
 function _M.connect_to_host(self, host)
     local r = redis.new()
-    r:set_timeout(self.connect_timeout)
+    local config = self.config
+    r:set_timeout(config.connect_timeout)
 
     local ok, err
     local socket = host.socket
+    local opts = config.connection_options
     if socket then
-        if self.connection_options then
-            ok, err = r:connect(socket, self.connection_options)
+        if opts then
+            ok, err = r:connect(socket, config.connection_options)
         else
             ok, err = r:connect(socket)
         end
     else
-        if self.connection_options then
-            ok, err = r:connect(host.host, host.port, self.connection_options)
+        if opts then
+            ok, err = r:connect(host.host, host.port, config.connection_options)
         else
             ok, err = r:connect(host.host, host.port)
         end
@@ -224,10 +301,10 @@ function _M.connect_to_host(self, host)
         ngx_log(ngx_ERR, err, " for ", host.host, ":", host.port)
         return nil, err
     else
-        r:set_timeout(self, self.read_timeout)
+        r:set_timeout(self, config.read_timeout)
 
         local password = host.password
-        if password then
+        if password and password ~= "" then
             local res, err = r:auth(password)
             if err then
                 ngx_log(ngx_ERR, err)
@@ -241,4 +318,17 @@ function _M.connect_to_host(self, host)
 end
 
 
-return _M
+local function set_keepalive(self, redis)
+    -- Restore connection to "NORMAL" before putting into keepalive pool,
+    -- ignoring any errors.
+    redis:discard()
+
+    local config = self.config
+    return redis:set_keepalive(
+        config.keepalive_timeout, config.keepalive_poolsize
+    )
+end
+_M.set_keepalive = set_keepalive
+
+
+return setmetatable(_M, fixed_field_metatable)
