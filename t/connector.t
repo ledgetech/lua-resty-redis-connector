@@ -1,7 +1,5 @@
-use Test::Nginx::Socket::Lua;
+use Test::Nginx::Socket 'no_plan';
 use Cwd qw(cwd);
-
-plan tests => repeat_each() * (3 * blocks() - 1);
 
 my $pwd = cwd();
 
@@ -17,48 +15,39 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: basic
+=== TEST 1: basic connect
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     content_by_lua_block {
-        local rc = require("resty.redis.connector").new()
+        local rc = require("resty.redis.connector").new({
+            port = $TEST_NGINX_REDIS_PORT
+        })
 
-        local params = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
+        local redis = assert(rc:connect(params),
+            "connect should return positively")
 
-        local redis, err = rc:connect(params)
-        if not redis then
-            ngx.say("failed to connect: ", err)
-            return
-        end
-
-        local res, err = redis:set("dog", "an animal")
-        if not res then
-            ngx.say("failed to set dog: ", err)
-            return
-        end
-
-        ngx.say("set dog: ", res)
+        assert(redis:set("dog", "an animal"),
+            "redis:set should return positively")
 
         redis:close()
     }
 }
 --- request
 GET /t
---- response_body
-set dog: OK
 --- no_error_log
 [error]
 
 
-=== TEST 2: test we can try a list of hosts, and connect to the first working one
+=== TEST 2: try_hosts
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
+    lua_socket_log_errors off;
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
-        rc:set_connect_timeout(100)
+        local rc = require("resty.redis.connector").new({
+            connect_timeout = 100,
+        })
 
         local hosts = {
             { host = "127.0.0.1", port = 1 },
@@ -67,36 +56,38 @@ location /t {
         }
 
         local redis, err, previous_errors = rc:try_hosts(hosts)
-        if not redis then
-            ngx.say("failed to connect: ", err)
-            return
-        end
+        assert(redis and not err,
+            "try_hosts should return a connection and no error")
 
-        -- Print the failed connection errors
-        ngx.say("connection 1 error: ", err)
+        assert(previous_errors[1] == "connection refused",
+            "previous_errors[1] should be 'connection refused'")
+        assert(previous_errors[2] == "connection refused",
+            "previous_errors[2] should be 'connection refused'")
 
-        ngx.say("connection 2 error: ", previous_errors[1])
-
-        local res, err = redis:set("dog", "an animal")
-        if not res then
-            ngx.say("failed to set dog: ", err)
-            return
-        end
-
-        ngx.say("set dog: ", res)
-
+        assert(redis:set("dog", "an animal"),
+            "redis connection should be working")
 
         redis:close()
+
+        local hosts = {
+            { host = "127.0.0.1", port = 1 },
+            { host = "127.0.0.1", port = 2 },
+        }
+
+        local redis, err, previous_errors = rc:try_hosts(hosts)
+        assert(not redis and err == "no hosts available",
+            "no available hosts should return an error")
+
+        assert(previous_errors[1] == "connection refused",
+            "previous_errors[1] should be 'connection refused'")
+        assert(previous_errors[2] == "connection refused",
+            "previous_errors[2] should be 'connection refused'")
     }
 }
 --- request
     GET /t
---- response_body
-connection 1 error: connection refused
-connection 2 error: connection refused
-set dog: OK
---- error_log
-111: Connection refused
+--- no_error_log
+[error]
 
 
 === TEST 3: Test connect_to_host directly
