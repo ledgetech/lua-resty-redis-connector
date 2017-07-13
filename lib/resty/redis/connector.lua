@@ -129,17 +129,17 @@ end
 
 
 function _M.set_connect_timeout(self, timeout)
-    self.connect_timeout = timeout
+    self.config.connect_timeout = timeout
 end
 
 
 function _M.set_read_timeout(self, timeout)
-    self.read_timeout = timeout
+    self.config.read_timeout = timeout
 end
 
 
 function _M.set_connection_options(self, options)
-    self.connection_options = options
+    self.config.connection_options = options
 end
 
 
@@ -277,20 +277,21 @@ end
 
 function _M.connect_to_host(self, host)
     local r = redis.new()
-    r:set_timeout(self.connect_timeout)
+    local config = self.config
+    r:set_timeout(config.connect_timeout)
 
     local ok, err
     local socket = host.socket
-    local opts = self.connection_options
+    local opts = config.connection_options
     if socket then
         if opts then
-            ok, err = r:connect(socket, self.connection_options)
+            ok, err = r:connect(socket, config.connection_options)
         else
             ok, err = r:connect(socket)
         end
     else
         if opts then
-            ok, err = r:connect(host.host, host.port, self.connection_options)
+            ok, err = r:connect(host.host, host.port, config.connection_options)
         else
             ok, err = r:connect(host.host, host.port)
         end
@@ -300,7 +301,7 @@ function _M.connect_to_host(self, host)
         ngx_log(ngx_ERR, err, " for ", host.host, ":", host.port)
         return nil, err
     else
-        r:set_timeout(self, self.read_timeout)
+        r:set_timeout(self, config.read_timeout)
 
         local password = host.password
         if password and password ~= "" then
