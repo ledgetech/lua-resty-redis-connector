@@ -90,7 +90,7 @@ GET /t
 [error]
 
 
-=== TEST 4: Unknown config errors, all config does not
+=== TEST 4: Unknown config errors, all config does not error
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
