@@ -184,9 +184,6 @@ function _M.connect(self, params)
 
     if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
-    elseif params.startup_cluster_nodes then
-        -- TODO: Implement cluster
-        return nil, "Redis Cluster not yet implemented"
     else
         return self:connect_to_host(params)
     end
