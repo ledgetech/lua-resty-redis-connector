@@ -20,11 +20,11 @@ end
 local fixed_field_metatable = {
     __index =
         function(t, k)
-            error("field " .. tostring(k) .. " does not exist", 3)
+            error("field " .. tostring(k) .. " does not exist", 2)
         end,
     __newindex =
         function(t, k, v)
-            error("attempt to create new field " .. tostring(k), 3)
+            error("attempt to create new field " .. tostring(k), 2)
         end,
 }
 
@@ -332,4 +332,4 @@ end
 _M.set_keepalive = set_keepalive
 
 
-return _M
+return setmetatable(_M, fixed_field_metatable)
