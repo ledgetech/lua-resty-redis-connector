@@ -23,11 +23,11 @@ end
 local fixed_field_metatable = {
     __index =
         function(t, k)
-            error("field " .. tostring(k) .. " does not exist", 2)
+            error("field " .. tostring(k) .. " does not exist", 3)
         end,
     __newindex =
         function(t, k, v)
-            error("attempt to create new field " .. tostring(k), 2)
+            error("attempt to create new field " .. tostring(k), 3)
         end,
 }
 
@@ -122,7 +122,7 @@ function _M.new(config)
         return nil, config  -- err
     else
         return setmetatable({
-            config = config
+            config = setmetatable(config, fixed_field_metatable)
         }, mt)
     end
 end
@@ -283,13 +283,13 @@ function _M.connect_to_host(self, host)
     r:set_timeout(config.connect_timeout)
 
     local ok, err
-    local socket = host.socket
+    local path = host.path
     local opts = config.connection_options
-    if socket then
+    if path and path ~= "" then
         if opts then
-            ok, err = r:connect(socket, config.connection_options)
+            ok, err = r:connect(path, config.connection_options)
         else
-            ok, err = r:connect(socket)
+            ok, err = r:connect(path)
         end
     else
         if opts then
