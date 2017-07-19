@@ -150,7 +150,7 @@ local function parse_dsn(params)
 
         local m, err = ngx_re_match(url, url_pattern, "oj")
         if not m then
-            return nil, "could not parse DSN: " .. err
+            return nil, "could not parse DSN: " .. tostring(err)
         end
 
         local fields
@@ -175,6 +175,7 @@ local function parse_dsn(params)
 
     return true, nil
 end
+_M.parse_dsn = parse_dsn
 
 
 function _M.connect(self, params)
