@@ -161,7 +161,9 @@ GET /t
 location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
-        local rc = require("resty.redis.connector").new()
+        local rc = require("resty.redis.connector").new({
+            port = $TEST_NGINX_REDIS_PORT,
+        })
 
         local redis = assert(rc:connect(),
             "rc:connect should return positively")
@@ -186,3 +188,26 @@ location /t {
 GET /t
 --- no_error_log
 [error]
+
+
+=== TEST 6: password
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new({
+            port = $TEST_NGINX_REDIS_PORT,
+            password = "foo",
+        })
+
+        local redis, err = rc:connect()
+        assert(not redis and string.find(err, "ERR Client sent AUTH, but no password is set"),
+            "connect should fail with password error")
+
+    }
+}
+--- request
+GET /t
+--- error_log
+ERR Client sent AUTH, but no password is set
