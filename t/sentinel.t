@@ -1,7 +1,5 @@
-use Test::Nginx::Socket;
+use Test::Nginx::Socket 'no_plan';
 use Cwd qw(cwd);
-
-plan tests => repeat_each() * (3 * blocks());
 
 my $pwd = cwd();
 
@@ -17,7 +15,6 @@ $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
 
 no_long_string();
-
 run_tests();
 
 __DATA__
@@ -26,34 +23,27 @@ __DATA__
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
-    content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+	content_by_lua_block {
+		local rc = require("resty.redis.connector").new()
 
-        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-        if not sentinel then
-            ngx.say("failed to connect: ", err)
-            return
-        end
+		local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
+		assert(sentinel and not err, "sentinel should connect without errors")
 
-        local redis_sentinel = require "resty.redis.sentinel"
+		local master, err = require("resty.redis.sentinel").get_master(
+			sentinel,
+			"mymaster"
+		)
 
-        local master, err = redis_sentinel.get_master(sentinel, "mymaster")
-        if not master then
-            ngx.say(err)
-        else
-            ngx.say("host: ", master.host)
-            ngx.say("port: ", master.port)
-        end
+		assert(master and not err, "get_master should return the master")
 
-        sentinel:close()
-        }
+		assert(master.host == "127.0.0.1" and tonumber(master.port) == 6379,
+			"host should be 127.0.0.1 and port should be 6379")
+
+		sentinel:close()
+	}
 }
 --- request
-    GET /t
---- response_body
-host: 127.0.0.1
-port: 6379
+GET /t
 --- no_error_log
 [error]
 
@@ -100,38 +90,56 @@ location /t {
 --- no_error_log
 [error]
 
+
 === TEST 3: Get only healthy slaves
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     content_by_lua_block {
-        local redis = require "resty.redis"
-        local r = redis.new()
-        r:connect("127.0.0.1", 6378)
+        local rc = require("resty.redis.connector").new()
+
+        local sentinel, err = rc:connect({ url = "redis://127.0.0.1:6381" })
+		assert(sentinel and not err, "sentinel should connect without error")
+
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+			sentinel,
+			"mymaster"
+		)
+
+		assert(slaves and not err, "slaves should be returned without error")
+
+		local slaveports = { ["6378"] = false, ["6380"] = false }
+
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
+
+		assert(slaveports["6378"] == true and slaveports["6380"] == true,
+			"slaves should both be found")
+
+		-- connect to one and remove it
+		local r = require("resty.redis.connector").new():connect({
+			port = 6378,
+		})
         r:slaveof("127.0.0.1", 7000)
 
         ngx.sleep(9)
 
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+			sentinel,
+			"mymaster"
+		)
 
-        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-        if not sentinel then
-            ngx.say("failed to connect: ", err)
-            return
-        end
+		assert(slaves and not err, "slaves should be returned without error")
 
-        local redis_sentinel = require "resty.redis.sentinel"
+		local slaveports = { ["6378"] = false, ["6380"] = false }
 
-        local slaves, err = redis_sentinel.get_slaves(sentinel, "mymaster")
-        if not slaves then
-            ngx.say(err)
-        else
-            for _,slave in ipairs(slaves) do
-                ngx.say("host: ", slave.host)
-                ngx.say("port: ", slave.port)
-            end
-        end
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
+
+		assert(slaveports["6378"] == false and slaveports["6380"] == true,
+			"only 6380 should be found")
 
         sentinel:close()
     }
@@ -139,8 +147,5 @@ location /t {
 --- request
     GET /t
 --- timeout: 10
---- response_body
-host: 127.0.0.1
-port: 6380
 --- no_error_log
 [error]
