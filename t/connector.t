@@ -89,89 +89,68 @@ location /t {
     }
 }
 --- request
-    GET /t
+GET /t
 --- no_error_log
 [error]
 
 
-=== TEST 3: Test connect_to_host directly
+=== TEST 3: connect_to_host
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+        local rc = require("resty.redis.connector").new()
 
         local host = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
         local redis, err = rc:connect_to_host(host)
-        if not redis then
-            ngx.say("failed to connect: ", err)
-            return
-        end
+        assert(redis and not err,
+            "connect_to_host should return positively")
 
-        local res, err = redis:set("dog", "an animal")
-        if not res then
-            ngx.say("failed to set dog: ", err)
-            return
-        end
-
-        ngx.say("set dog: ", res)
+        assert(redis:set("dog", "an animal"),
+            "redis connection should be working")
 
         redis:close()
     }
 }
 --- request
-    GET /t
---- response_body
-set dog: OK
+GET /t
 --- no_error_log
 [error]
 
 
-=== TEST 4: Test connect options override
+=== TEST 4: connect_to_host options ignore defaults
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
-
-        local host = {
-            host = "127.0.0.1",
+        local rc = require("resty.redis.connector").new({
             port = $TEST_NGINX_REDIS_PORT,
+            db = 2,
+        })
+
+        local redis, err = assert(rc:connect_to_host({
+            host = "127.0.0.1",
             db = 1,
-        }
+            port = $TEST_NGINX_REDIS_PORT
+        }), "connect_to_host should return positively")
 
-        local redis, err = rc:connect_to_host(host)
-        if not redis then
-            ngx.say("failed to connect: ", err)
-            return
-        end
-
-        local res, err = redis:set("dog", "an animal")
-        if not res then
-            ngx.say("failed to set dog: ", err)
-            return
-        end
-
-        ngx.say("set dog: ", res)
+        assert(redis:set("dog", "an animal") == "OK",
+            "set should return 'OK'")
 
         redis:select(2)
-        ngx.say(redis:get("dog"))
+        assert(redis:get("dog") == ngx.null,
+            "dog should not exist in db 2")
 
         redis:select(1)
-        ngx.say(redis:get("dog"))
+        assert(redis:get("dog") == "an animal",
+            "dog should be 'an animal' in db 1")
 
         redis:close()
     }
 }
 --- request
-    GET /t
---- response_body
-set dog: OK
-null
-an animal
+GET /t
 --- no_error_log
 [error]
 
