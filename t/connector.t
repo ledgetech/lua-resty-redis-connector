@@ -28,7 +28,7 @@ location /t {
             port = $TEST_NGINX_REDIS_PORT
         })
 
-        local redis = assert(rc:connect(params),
+        local redis, err = assert(rc:connect(params),
             "connect should return positively")
 
         assert(redis:set("dog", "an animal"),
@@ -211,3 +211,23 @@ location /t {
 GET /t
 --- error_log
 ERR Client sent AUTH, but no password is set
+
+
+=== TEST 7: unix domain socket
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local redis,  err = require("resty.redis.connector").new({
+            path = "unix://tmp/redis.sock",
+        }):connect()
+
+		assert(not redis and err == "no such file or directory",
+			"bad domain socket should fail")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
