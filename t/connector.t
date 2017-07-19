@@ -242,7 +242,7 @@ location /t {
         local rc = require("resty.redis.connector")
 
 		local params = {
-			url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4"	
+			url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4"
 		}
 
 		local ok, err = rc.parse_dsn(params)
@@ -253,11 +253,11 @@ location /t {
 		assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT,
 			"port should be $TEST_NGINX_REDIS_PORT")
 		assert(tonumber(params.db) == 4, "db should be 4")
-		assert(params.password == "foo", "password should be foo")	
-		
+		assert(params.password == "foo", "password should be foo")
+
 
 		local params = {
-			url = "sentinel://foo@foomaster:s/2"	
+			url = "sentinel://foo@foomaster:s/2"
 		}
 
 		local ok, err = rc.parse_dsn(params)
@@ -266,13 +266,13 @@ location /t {
 
 		assert(params.master_name == "foomaster", "master_name should be foomaster")
 		assert(params.role == "slave", "role should be slave")
-		assert(tonumber(params.db) == 2, "db should be 2") 
+		assert(tonumber(params.db) == 2, "db should be 2")
 
 
 		local params = {
 			url = "sentinels:/wrongformat",
 		}
-		
+
 		local ok, err = rc.parse_dsn(params)
 		assert(not ok and err == "could not parse DSN: nil",
 			"url should fail to parse")
