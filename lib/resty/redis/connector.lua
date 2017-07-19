@@ -50,6 +50,27 @@ local function tbl_copy(orig)
 end
 
 
+-- Returns a new table, recursively copied from the one given, retaining
+-- metatable assignment.
+--
+-- @param   table   table to be copied
+-- @return  table
+local function tbl_copy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == "table" then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[tbl_copy(orig_key)] = tbl_copy(orig_value)
+        end
+        setmetatable(copy, tbl_copy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+
 -- Returns a new table, recursively copied from the combination of the given
 -- table `t1`, with any missing fields copied from `defaults`.
 --
@@ -89,7 +110,6 @@ local DEFAULTS = setmetatable({
 
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
-
     host = "127.0.0.1",
     port = 6379,
     path = "", -- /tmp/redis.sock

@@ -141,6 +141,7 @@ location /t {
 		assert(slaveports["6378"] == false and slaveports["6380"] == true,
 			"only 6380 should be found")
 
+        r:slaveof("127.0.0.1", 6379)
         sentinel:close()
     }
 }
