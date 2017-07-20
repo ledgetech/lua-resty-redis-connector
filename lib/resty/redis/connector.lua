@@ -101,7 +101,6 @@ local DEFAULTS = setmetatable({
     role = "master",  -- master | slave | any
     sentinels = {},
 
-    cluster_startup_nodes = {},  -- TODO remove this until implemented?
 }, fixed_field_metatable)
 
 
