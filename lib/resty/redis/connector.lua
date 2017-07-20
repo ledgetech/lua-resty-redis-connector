@@ -191,7 +191,7 @@ end
 
 
 local function sort_by_localhost(a, b)
-    if a.host == "127.0.0.1" then
+    if a.host == "127.0.0.1" and b.host ~= "127.0.0.1" then
         return true
     else
         return false
