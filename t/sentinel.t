@@ -48,6 +48,33 @@ GET /t
 [error]
 
 
+=== TEST 1b: Get the master directly
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+	content_by_lua_block {
+		local rc = require("resty.redis.connector").new()
+
+		local master, err = rc:connect({
+            url = "sentinel://mymaster:m/3",
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 }
+            }
+        })
+
+		assert(master and not err, "get_master should return the master")
+        assert(master:set("foo", "bar"), "set should run without error")
+        assert(master:get("foo") == "bar", "get(foo) should return bar")
+
+	    master:close()
+	}
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
 === TEST 2: Get slaves
 --- http_config eval: $::HttpConfig
 --- config
