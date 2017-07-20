@@ -53,42 +53,35 @@ GET /t
 --- config
 location /t {
     content_by_lua_block {
-        local redis_connector = require "resty.redis.connector"
-        local rc = redis_connector.new()
+        local rc = require("resty.redis.connector").new()
 
         local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-        if not sentinel then
-            ngx.say("failed to connect: ", err)
-            return
-        end
+        assert(sentinel and not err, "sentinel should connect without error")
 
-        local redis_sentinel = require "resty.redis.sentinel"
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+            sentinel,
+            "mymaster"
+        )
 
-        local slaves, err = redis_sentinel.get_slaves(sentinel, "mymaster")
-        if not slaves then
-            ngx.say(err)
-        else
-            -- order is undefined
-            local all = {}
-            for i,slave in ipairs(slaves) do
-                all[i] = tonumber(slave.port)
-            end
-            table.sort(all)
-            for _,p in ipairs(all) do
-                ngx.say(p)
-            end
-        end
+        assert(slaves and not err, "slaves should be returned without error")
+
+		local slaveports = { ["6378"] = false, ["6380"] = false }
+
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
+
+		assert(slaveports["6378"] == true and slaveports["6380"] == true,
+			"slaves should both be found")
 
         sentinel:close()
     }
 }
 --- request
-    GET /t
---- response_body
-6378
-6380
+GET /t
 --- no_error_log
 [error]
+--- ONLY
 
 
 === TEST 3: Get only healthy slaves
