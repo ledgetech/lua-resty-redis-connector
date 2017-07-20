@@ -175,3 +175,42 @@ location /t {
 GET /t
 --- no_error_log
 [error]
+
+
+=== TEST 5: regression for slave sorting (iss12)
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+
+        local params = {
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 },
+                { host = "127.0.0.1", port = 6382 },
+                { host = "127.0.0.1", port = 6383 },
+            },
+            master_name = "mymaster",
+            role = "slave",
+        }
+
+        -- hotwire get_slaves to expose sorting issue
+        local sentinel = require("resty.redis.sentinel")
+        sentinel.get_slaves = function()
+            return {
+                { host = "127.0.0.1", port = 6380 },
+                { host = "127.0.0.1", port = 6378 },
+                { host = "127.0.0.1", port = 6377 },
+                { host = "134.123.51.2", port = 6380 },
+            }
+        end
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
