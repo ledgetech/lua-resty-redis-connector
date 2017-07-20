@@ -78,10 +78,9 @@ location /t {
     }
 }
 --- request
-GET /t
+    GET /t
 --- no_error_log
 [error]
---- ONLY
 
 
 === TEST 3: Get only healthy slaves
@@ -135,11 +134,44 @@ location /t {
 			"only 6380 should be found")
 
         r:slaveof("127.0.0.1", 6379)
+
         sentinel:close()
     }
 }
 --- request
-    GET /t
+GET /t
 --- timeout: 10
+--- no_error_log
+[error]
+
+
+=== TEST 4: connector.connect_via_sentinel
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+
+        local params = {
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 },
+                { host = "127.0.0.1", port = 6382 },
+                { host = "127.0.0.1", port = 6383 },
+            },
+            master_name = "mymaster",
+            role = "master",
+        }
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+
+        params.role = "slave"
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+    }
+}
+--- request
+GET /t
 --- no_error_log
 [error]
