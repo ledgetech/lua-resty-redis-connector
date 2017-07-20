@@ -1,42 +1,87 @@
 # lua-resty-redis-connector
 
-Connection utilities for [lua-resty-redis](https://github.com/openresty/lua-resty-redis), making
-it easy and reliable to connect to Redis hosts, either directly or via
-[Redis Sentinel](http://redis.io/topics/sentinel).
+Connection utilities for [lua-resty-redis](https://github.com/openresty/lua-resty-redis), making it easy and reliable to connect to Redis hosts, either directly or via [Redis Sentinel](http://redis.io/topics/sentinel).
 
 
 ## Synopsis
 
+Quick and simple authenticated connection on localhost to DB 2:
+
 ```lua
-local redis_connector = require "resty.redis.connector"
-local rc = redis_connector.new()
+local redis, err = require("resty.redis.connector").new({
+    url = "redis://PASSWORD@127.0.0.1:6379/2",
+}):connect()
+```
 
-local redis, err = rc:connect{ url = "redis://PASSWORD@127.0.0.1:6379/2" }
+More verbose configuration, with timeouts and a default password:
 
--- or...
+```lua
+local rc = require("resty.redis.connector").new({
+    connect_timeout = 50,
+    read_timeout = 5000,
+    keepalive_timeout = 30000,
+    password = "mypass",
+})
 
-local redis, err = rc:connect{
+local redis, err = rc:connect({
+    url = "redis://127.0.0.1:6379/2",
+})
+
+-- ...
+
+local ok, err = rc:set_keepalive(redis)  -- uses keepalive params
+```
+
+Keep all config in a table, to easily create / close connections as needed:
+
+```lua
+local rc = require("resty.redis.connector").new({
+    connect_timeout = 50,
+    read_timeout = 5000,
+    keepalive_timeout = 30000,
+    
     host = "127.0.0.1",
     port = 6379,
     db = 2,
-    password = "PASSWORD",
-}
+    password = "mypass",
+})
 
-if not redis then
-    ngx.log(ngx.ERR, err)
-end
+local redis, err = rc:connect()
+
+-- ...
+
+local ok, err = rc:set_keepalive(redis)
 ```
+
+`connect` can be used to override defaults given in `new`
+
+
+```lua
+local rc = require("resty.redis.connector").new({
+    host = "127.0.0.1",
+    port = 6379,
+    db = 2,
+})
+
+local redis, err = rc:connect({
+    db = 5,
+})
+```
+
 
 ## DSN format
 
-The [connect](#connect) method accepts a single table of named arguments. If the `url` field is
-present then it will be parsed, overriding values supplied in the parameters table.
+If the `params.url` field is present then it will be parsed, overriding values supplied in the parameters table.
+
+### Direct Redis connections
 
 The format for connecting directly to Redis is:
 
 `redis://PASSWORD@HOST:PORT/DB`
 
 The `PASSWORD` and `DB` fields are optional, all other components are required.
+
+### Connections via Redis Sentinel
 
 When connecting via Redis Sentinel, the format is as follows:
 
@@ -48,30 +93,7 @@ Again, `PASSWORD` and `DB` are optional. `ROLE` must be any of `m`, `s` or `a`, 
 * `s`: slave
 * `a`: any (first tries the master, but will failover to a slave if required)
 
-
-## Parameters
-
-The [connect](#connect) method expects the following field values, either by falling back to
-defaults, populating the fields by parsing the DSN, or being specified directly.
-
-The defaults are as follows:
-
-
-```lua
-{
-    host = "127.0.0.1",
-    port = "6379",
-    path = nil, -- unix socket path, e.g. /tmp/redis.sock
-    password = "",
-    db = 0,
-    master_name = "mymaster",
-    role = "master", -- master | slave | any
-    sentinels = nil,
-}
-```
-
-Note that if `sentinel://` is supplied as the `url` parameter, a table of `sentinels` must also
-be supplied. e.g.
+A table of `sentinels` must also be supplied. e.g.
 
 ```lua
 local redis, err = rc:connect{
@@ -83,12 +105,33 @@ local redis, err = rc:connect{
 ```
 
 
+## Default Parameters
+
+
+```lua
+{
+    connect_timeout = 100,
+    read_timeout = 1000,
+    connection_options = {}, -- pool, etc
+    keepalive_timeout = 60000,
+    keepalive_poolsize = 30,
+    
+    host = "127.0.0.1",
+    port = "6379",
+    path = "",  -- unix socket path, e.g. /tmp/redis.sock
+    password = "",
+    db = 0,
+    
+    master_name = "mymaster",
+    role = "master",  -- master | slave | any
+    sentinels = {},
+}
+```
+
+
 ## API
 
 * [new](#new)
-* [set_connect_timeout](#set_connect_timeout)
-* [set_read_timeout](#set_read_timeout)
-* [set_connection_options](#set_connection_options)
 * [connect](#connect)
 * [Utilities](#utilities)
     * [connect_via_sentinel](#connect_via_sentinel)
@@ -106,37 +149,17 @@ local redis, err = rc:connect{
 Creates the Redis Connector object. In case of failures, returns `nil` and a string describing the error.
 
 
-### set_connect_timeout
-
-`syntax: rc:set_connect_timeout(100)`
-
-Sets the cosocket connection timeout, in ms.
-
-
-
-### set_read_timeout
-
-`syntax: rc:set_read_timeout(500)`
-
-Sets the cosocket read timeout, in ms.
-
-
-### set_connection_options
-
-`syntax: rc:set_connection_options({ pool = params.host .. ":" .. params.port .. "/" .. params.db })`
-
-Sets the connection options table, as supplied to [tcpsock:connect](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-method.
-
-
 ### connect
 
 `syntax: redis, err = rc:connect(params)`
 
-Attempts to create a connection, according to the [params](#parameters) supplied.
+Attempts to create a connection, according to the [params](#parameters) supplied. If a connection cannot be made, returns `nil` and a string describing the reason.
 
 
 ## Utilities
+
+The following methods are not typically needed, but may be useful if a custom interface is required.
+
 
 ### connect_via_sentinel
 
@@ -160,8 +183,6 @@ Tries the hosts supplied in order and returns the first successful connection.
 Attempts to connect to the supplied `host`.
 
 
-## Sentinel Utilities
-
 ### sentinel.get_master
 
 `syntax: master, err = sentinel.get_master(sentinel, master_name)`
@@ -174,11 +195,6 @@ Given a connected Sentinel instance and a master name, will return the current m
 `syntax: slaves, err = sentinel.get_slaves(sentinel, master_name)`
 
 Given a connected Sentinel instance and a master name, will return a list of registered slave Redis instances.
-
-
-## TODO
-
-* Redis Cluster support.
 
 
 # Author
