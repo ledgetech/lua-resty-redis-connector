@@ -1,19 +1,22 @@
-local redis = require "resty.redis"
-redis.add_commands("sentinel")
-local sentinel = require "resty.redis.sentinel"
+local ipairs, pcall, error, tostring, type, next, setmetatable, getmetatable =
+    ipairs, pcall, error, tostring, type, next, setmetatable, getmetatable
 
-
-local ipairs, setmetatable, pcall = ipairs, setmetatable, pcall
 local ngx_log = ngx.log
 local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
+
 local tbl_remove = table.remove
 local tbl_sort = table.sort
-
 local ok, tbl_new = pcall(require, "table.new")
 if not ok then
     tbl_new = function (narr, nrec) return {} end
 end
+
+local redis = require("resty.redis")
+redis.add_commands("sentinel")
+
+local get_master = require("resty.redis.sentinel").get_master
+local get_slaves = require("resty.redis.sentinel").get_slaves
 
 
 -- A metatable which prevents undefined fields from being created / accessed
@@ -86,15 +89,14 @@ local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
     connection_options = {}, -- pool, etc
-
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
+
     host = "127.0.0.1",
     port = 6379,
     path = "", -- /tmp/redis.sock
     password = "",
     db = 0,
-
     url = "", -- DSN url
 
     master_name = "mymaster",
@@ -196,7 +198,7 @@ function _M.connect_via_sentinel(self, params)
     end
 
     if role == "master" or role == "any" then
-        local master, err = sentinel.get_master(sentnl, master_name)
+        local master, err = get_master(sentnl, master_name)
         if master then
             master.db = db
             master.password = password
@@ -214,7 +216,7 @@ function _M.connect_via_sentinel(self, params)
     end
 
     -- We either wanted a slave, or are failing over to a slave "any"
-    local slaves, err = sentinel.get_slaves(sentnl, master_name)
+    local slaves, err = get_slaves(sentnl, master_name)
     sentnl:set_keepalive()
 
     if not slaves then
