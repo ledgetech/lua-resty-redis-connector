@@ -1,6 +1,6 @@
 SHELL := /bin/bash # Cheat by using bash :)
 
-OPENRESTY_PREFIX    = /usr/local/openresty-debug
+OPENRESTY_PREFIX    = /usr/local/openresty
 
 TEST_FILE          ?= t
 SENTINEL_TEST_FILE ?= $(TEST_FILE)/sentinel
@@ -141,8 +141,11 @@ check_ports:
 	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
 test_redis: flush_db
-	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	util/lua-releng
+	@rm -f luacov.stats.out
+	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
+	@luacov
+	@tail -7 luacov.report.out
 
 test_leak: flush_db
 	$(TEST_REDIS_VARS) TEST_NGINX_CHECK_LEAK=1 $(PROVE) $(TEST_FILE)

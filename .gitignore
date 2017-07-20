@@ -1,2 +1,3 @@
 t/servroot/
 t/error.log
+luacov.*

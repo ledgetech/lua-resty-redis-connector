@@ -1,24 +1,20 @@
-# vim:set ft= ts=4 sw=4 et:
-
-use Test::Nginx::Socket::Lua;
+use Test::Nginx::Socket 'no_plan';
 use Cwd qw(cwd);
-
-#repeat_each(2);
-
-plan tests => repeat_each() * (3 * blocks());
 
 my $pwd = cwd();
 
 our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
+lua_package_path "$pwd/lib/?.lua;;";
+
+init_by_lua_block {
+    require("luacov.runner").init()
+}
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
 
 no_long_string();
-#no_diff();
-
 run_tests();
 
 __DATA__
@@ -26,35 +22,55 @@ __DATA__
 === TEST 1: Get the master
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+location /t {
+	content_by_lua_block {
+		local rc = require("resty.redis.connector").new()
 
-            local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-            if not sentinel then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+		local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
+		assert(sentinel and not err, "sentinel should connect without errors")
 
-            local redis_sentinel = require "resty.redis.sentinel"
+		local master, err = require("resty.redis.sentinel").get_master(
+			sentinel,
+			"mymaster"
+		)
 
-            local master, err = redis_sentinel.get_master(sentinel, "mymaster")
-            if not master then
-                ngx.say(err)
-            else
-                ngx.say("host: ", master.host)
-                ngx.say("port: ", master.port)
-            end
+		assert(master and not err, "get_master should return the master")
 
-            sentinel:close()
-        ';
-    }
+		assert(master.host == "127.0.0.1" and tonumber(master.port) == 6379,
+			"host should be 127.0.0.1 and port should be 6379")
+
+		sentinel:close()
+	}
+}
 --- request
-    GET /t
---- response_body
-host: 127.0.0.1
-port: 6379
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 1b: Get the master directly
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+	content_by_lua_block {
+		local rc = require("resty.redis.connector").new()
+
+		local master, err = rc:connect({
+            url = "sentinel://mymaster:m/3",
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 }
+            }
+        })
+
+		assert(master and not err, "get_master should return the master")
+        assert(master:set("foo", "bar"), "set should run without error")
+        assert(master:get("foo") == "bar", "get(foo) should return bar")
+
+	    master:close()
+	}
+}
+--- request
+GET /t
 --- no_error_log
 [error]
 
@@ -62,87 +78,166 @@ port: 6379
 === TEST 2: Get slaves
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
 
-            local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-            if not sentinel then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
+        assert(sentinel and not err, "sentinel should connect without error")
 
-            local redis_sentinel = require "resty.redis.sentinel"
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+            sentinel,
+            "mymaster"
+        )
 
-            local slaves, err = redis_sentinel.get_slaves(sentinel, "mymaster")
-            if not slaves then
-                ngx.say(err)
-            else
-                -- order is undefined
-                local all = {}
-                for i,slave in ipairs(slaves) do
-                    all[i] = tonumber(slave.port)
-                end
-                table.sort(all)
-                for _,p in ipairs(all) do
-                    ngx.say(p)
-                end
-            end
+        assert(slaves and not err, "slaves should be returned without error")
 
-            sentinel:close()
-        ';
+		local slaveports = { ["6378"] = false, ["6380"] = false }
+
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
+
+		assert(slaveports["6378"] == true and slaveports["6380"] == true,
+			"slaves should both be found")
+
+        sentinel:close()
     }
+}
 --- request
     GET /t
---- response_body
-6378
-6380
 --- no_error_log
 [error]
+
 
 === TEST 3: Get only healthy slaves
 --- http_config eval: $::HttpConfig
 --- config
-    location /t {
-        content_by_lua '
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
 
-            local redis = require "resty.redis"
-            local r = redis.new()
-            r:connect("127.0.0.1", 6378)
-            r:slaveof("127.0.0.1", 7000)
+        local sentinel, err = rc:connect({ url = "redis://127.0.0.1:6381" })
+		assert(sentinel and not err, "sentinel should connect without error")
 
-            ngx.sleep(9)
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+			sentinel,
+			"mymaster"
+		)
 
-            local redis_connector = require "resty.redis.connector"
-            local rc = redis_connector.new()
+		assert(slaves and not err, "slaves should be returned without error")
 
-            local sentinel, err = rc:connect{ url = "redis://127.0.0.1:6381" }
-            if not sentinel then
-                ngx.say("failed to connect: ", err)
-                return
-            end
+		local slaveports = { ["6378"] = false, ["6380"] = false }
 
-            local redis_sentinel = require "resty.redis.sentinel"
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
 
-            local slaves, err = redis_sentinel.get_slaves(sentinel, "mymaster")
-            if not slaves then
-                ngx.say(err)
-            else
-                for _,slave in ipairs(slaves) do
-                    ngx.say("host: ", slave.host)
-                    ngx.say("port: ", slave.port)
-                end
-            end
+		assert(slaveports["6378"] == true and slaveports["6380"] == true,
+			"slaves should both be found")
 
-            sentinel:close()
-        ';
+		-- connect to one and remove it
+		local r = require("resty.redis.connector").new():connect({
+			port = 6378,
+		})
+        r:slaveof("127.0.0.1", 7000)
+
+        ngx.sleep(9)
+
+        local slaves, err = require("resty.redis.sentinel").get_slaves(
+			sentinel,
+			"mymaster"
+		)
+
+		assert(slaves and not err, "slaves should be returned without error")
+
+		local slaveports = { ["6378"] = false, ["6380"] = false }
+
+		for _,slave in ipairs(slaves) do
+			slaveports[tostring(slave.port)] = true
+		end
+
+		assert(slaveports["6378"] == false and slaveports["6380"] == true,
+			"only 6380 should be found")
+
+        r:slaveof("127.0.0.1", 6379)
+
+        sentinel:close()
     }
+}
 --- request
-    GET /t
+GET /t
 --- timeout: 10
---- response_body
-host: 127.0.0.1
-port: 6380
+--- no_error_log
+[error]
+
+
+=== TEST 4: connector.connect_via_sentinel
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+
+        local params = {
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 },
+                { host = "127.0.0.1", port = 6382 },
+                { host = "127.0.0.1", port = 6383 },
+            },
+            master_name = "mymaster",
+            role = "master",
+        }
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+
+        params.role = "slave"
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 5: regression for slave sorting (iss12)
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+
+        local params = {
+            sentinels = {
+                { host = "127.0.0.1", port = 6381 },
+                { host = "127.0.0.1", port = 6382 },
+                { host = "127.0.0.1", port = 6383 },
+            },
+            master_name = "mymaster",
+            role = "slave",
+        }
+
+        -- hotwire get_slaves to expose sorting issue
+        local sentinel = require("resty.redis.sentinel")
+        sentinel.get_slaves = function()
+            return {
+                { host = "127.0.0.1", port = 6380 },
+                { host = "127.0.0.1", port = 6378 },
+                { host = "127.0.0.1", port = 6377 },
+                { host = "134.123.51.2", port = 6380 },
+            }
+        end
+
+        local redis, err = rc:connect_via_sentinel(params)
+        assert(redis and not err, "redis should connect without error")
+    }
+}
+--- request
+GET /t
 --- no_error_log
 [error]

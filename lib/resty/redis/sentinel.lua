@@ -1,15 +1,17 @@
 local ipairs, type = ipairs, type
-local ngx_null = ngx.null
-local tbl_insert = table.insert
 
+local ngx_null = ngx.null
+
+local tbl_insert = table.insert
 local ok, tbl_new = pcall(require, "table.new")
 if not ok then
     tbl_new = function (narr, nrec) return {} end
 end
 
 
-local _M = {}
-_M._VERSION = 0.03
+local _M = {
+    _VERSION = '0.04'
+}
 
 
 function _M.get_master(sentinel, master_name)
