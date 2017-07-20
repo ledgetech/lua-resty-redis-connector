@@ -123,21 +123,6 @@ function _M.new(config)
 end
 
 
-function _M.set_connect_timeout(self, timeout)
-    self.config.connect_timeout = timeout
-end
-
-
-function _M.set_read_timeout(self, timeout)
-    self.config.read_timeout = timeout
-end
-
-
-function _M.set_connection_options(self, options)
-    self.config.connection_options = options
-end
-
-
 local function parse_dsn(params)
     local url = params.url
     if url and url ~= "" then
@@ -328,6 +313,25 @@ local function set_keepalive(self, redis)
     )
 end
 _M.set_keepalive = set_keepalive
+
+
+
+-- Deprecated: use config table in new() or connect() instead.
+function _M.set_connect_timeout(self, timeout)
+    self.config.connect_timeout = timeout
+end
+
+
+-- Deprecated: use config table in new() or connect() instead.
+function _M.set_read_timeout(self, timeout)
+    self.config.read_timeout = timeout
+end
+
+
+-- Deprecated: use config table in new() or connect() instead.
+function _M.set_connection_options(self, options)
+    self.config.connection_options = options
+end
 
 
 return setmetatable(_M, fixed_field_metatable)
