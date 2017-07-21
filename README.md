@@ -133,6 +133,7 @@ local redis, err = rc:connect{
 
 * [new](#new)
 * [connect](#connect)
+* [set_keepalive](#set_keepalive)
 * [Utilities](#utilities)
     * [connect_via_sentinel](#connect_via_sentinel)
     * [try_hosts](#try_hosts)
@@ -143,16 +144,27 @@ local redis, err = rc:connect{
 
 ### new
 
-`syntax: rc = redis_connector.new()`
+`syntax: rc = redis_connector.new(params)`
 
-Creates the Redis Connector object. In case of failures, returns `nil` and a string describing the error.
+Creates the Redis Connector object, overring default params with the ones given. In case of failures, returns `nil` and a string describing the error.
 
 
 ### connect
 
 `syntax: redis, err = rc:connect(params)`
 
-Attempts to create a connection, according to the [params](#parameters) supplied. If a connection cannot be made, returns `nil` and a string describing the reason.
+Attempts to create a connection, according to the [params](#parameters) supplied, falling back to defaults given in `new` or the predefined defaults. If a connection cannot be made, returns `nil` and a string describing the reason.
+
+
+### set_keepalive
+
+`syntax: ok, err = rc:set_keepalive(redis)`
+
+Attempts to place the given Redis connection on the keepalive pool, according to timeout and poolsize params given in `new` or the predefined defaults.
+
+This allows an application to release resources without having to keep track of application wide keepalive settings.
+
+Returns `1` or in the case of error, `nil` and a string describing the error.
 
 
 ## Utilities
