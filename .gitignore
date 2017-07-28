@@ -1,4 +1,5 @@
 t/servroot/
 t/error.log
 luacov.*
-lua-resty-redis-connector-*
+*.src.rock
+lua-resty-redis-connector*.tar.gz
