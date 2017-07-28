@@ -1,3 +1,4 @@
 t/servroot/
 t/error.log
 luacov.*
+lua-resty-redis-connector-*
