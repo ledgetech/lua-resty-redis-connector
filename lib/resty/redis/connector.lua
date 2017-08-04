@@ -136,10 +136,12 @@ function _M.new(config)
         return nil, config  -- err
     else
         -- In proxied Redis mode disable default commands
-        if config.connection_is_proxied == true
-           and not next(config.disabled_commands) then
+        if config.connection_is_proxied == true and
+            not next(config.disabled_commands) then
+
             config.disabled_commands = default_disabled_commands
         end
+
         return setmetatable({
             config = setmetatable(config, fixed_field_metatable)
         }, mt)
