@@ -104,6 +104,21 @@ local redis, err = rc:connect{
 }
 ```
 
+## Proxy Mode
+
+Enable the `connection_is_proxied` parameter if connecting to Redis through a proxy service (e.g. Twemproxy).  
+These proxies generally only support a limited sub-set of Redis commands, those which do not require state and do not affect multiple keys.  
+Databases and transactions are also not supported.
+
+Proxy mode will disable switching to a DB on connect.  
+Unsupported commands (defaults to those not supported by Twemproxy) will return `nil, err` immediately rather than being sent to the proxy, which can result in dropped connections.
+
+`discard` will not be sent when adding connections to the keepalive pool
+
+
+## Disabled commands
+
+If configured as a table of commands, the command methods will be replaced by a function which immediately returns `nil, err` without forwarding the command to the server
 
 ## Default Parameters
 
@@ -115,16 +130,20 @@ local redis, err = rc:connect{
     connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
-    
+
     host = "127.0.0.1",
     port = "6379",
     path = "",  -- unix socket path, e.g. /tmp/redis.sock
     password = "",
     db = 0,
-    
+
     master_name = "mymaster",
     role = "master",  -- master | slave | any
     sentinels = {},
+
+    connection_is_proxied = false,
+
+    disabled_commands = {},
 }
 ```
 
