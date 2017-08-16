@@ -130,25 +130,6 @@ local _M = {
 local mt = { __index = _M }
 
 
-function _M.new(config)
-    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
-    if not ok then
-        return nil, config  -- err
-    else
-        -- In proxied Redis mode disable default commands
-        if config.connection_is_proxied == true and
-            not next(config.disabled_commands) then
-
-            config.disabled_commands = default_disabled_commands
-        end
-
-        return setmetatable({
-            config = setmetatable(config, fixed_field_metatable)
-        }, mt)
-    end
-end
-
-
 local function parse_dsn(params)
     local url = params.url
     if url and url ~= "" then
@@ -172,26 +153,55 @@ local function parse_dsn(params)
 
         local roles = { m = "master", s = "slave", a = "any" }
 
+        local parsed_params = {}
+
         for i,v in ipairs(fields) do
-            params[v] = m[i + 1]
+            parsed_params[v] = m[i + 1]
             if v == "role" then
-                params[v] = roles[params[v]]
+                parsed_params[v] = roles[parsed_params[v]]
             end
         end
-    end
 
-    return true, nil
+        return tbl_copy_merge_defaults(params, parsed_params)
+    end
 end
 _M.parse_dsn = parse_dsn
 
 
-function _M.connect(self, params)
-    local params = tbl_copy_merge_defaults(params, self.config)
-
-    if params.url then
-        local ok, err = parse_dsn(params)
+function _M.new(config)
+    -- Fill out gaps in config with any dsn params
+    if config and config.url then
+        local err
+        config, err = parse_dsn(config)
         if not ok then ngx_log(ngx_ERR, err) end
     end
+
+    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
+    if not ok then
+        return nil, config  -- err
+    else
+        -- In proxied Redis mode disable default commands
+        if config.connection_is_proxied == true and
+            not next(config.disabled_commands) then
+
+            config.disabled_commands = default_disabled_commands
+        end
+
+        return setmetatable({
+            config = setmetatable(config, fixed_field_metatable)
+        }, mt)
+    end
+end
+
+
+function _M.connect(self, params)
+    if params and params.url then
+        local err
+        params, err = parse_dsn(params)
+        if not ok then ngx_log(ngx_ERR, err) end
+    end
+
+    params = tbl_copy_merge_defaults(params, self.config)
 
     if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
