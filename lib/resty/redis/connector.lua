@@ -100,7 +100,7 @@ local DEFAULTS = setmetatable({
     url = "", -- DSN url
 
     master_name = "mymaster",
-    role = "master",  -- master | slave | any
+    role = "master",  -- master | slave
     sentinels = {},
 
     -- Redis proxies typically don't support full Redis capabilities
@@ -151,7 +151,7 @@ local function parse_dsn(params)
         -- password may not be present
         if #m < 5 then tbl_remove(fields, 1) end
 
-        local roles = { m = "master", s = "slave", a = "any" }
+        local roles = { m = "master", s = "slave" }
 
         local parsed_params = {}
 
@@ -232,7 +232,7 @@ function _M.connect_via_sentinel(self, params)
         return nil, err, previous_errors
     end
 
-    if role == "master" or role == "any" then
+    if role == "master" then
         local master, err = get_master(sentnl, master_name)
         if master then
             master.db = db
@@ -248,31 +248,32 @@ function _M.connect_via_sentinel(self, params)
                 end
             end
         end
-    end
 
-    -- We either wanted a slave, or are failing over to a slave "any"
-    local slaves, err = get_slaves(sentnl, master_name)
-    sentnl:set_keepalive()
-
-    if not slaves then
-        return nil, err
-    end
-
-    -- Put any slaves on 127.0.0.1 at the front
-    tbl_sort(slaves, sort_by_localhost)
-
-    if db or password then
-        for i,slave in ipairs(slaves) do
-            slave.db = db
-            slave.password = password
-        end
-    end
-
-    local slave, err, previous_errors = self:try_hosts(slaves)
-    if not slave then
-        return nil, err, previous_errors
     else
-        return slave
+        -- We want a slave
+        local slaves, err = get_slaves(sentnl, master_name)
+        sentnl:set_keepalive()
+
+        if not slaves then
+            return nil, err
+        end
+
+        -- Put any slaves on 127.0.0.1 at the front
+        tbl_sort(slaves, sort_by_localhost)
+
+        if db or password then
+            for i,slave in ipairs(slaves) do
+                slave.db = db
+                slave.password = password
+            end
+        end
+
+        local slave, err, previous_errors = self:try_hosts(slaves)
+        if not slave then
+            return nil, err, previous_errors
+        else
+            return slave
+        end
     end
 end
 
