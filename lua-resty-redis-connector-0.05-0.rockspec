@@ -1,8 +1,8 @@
 package = "lua-resty-redis-connector"
-version = "0.04-0"
+version = "0.05-0"
 source = {
   url = "git://github.com/pintsized/lua-resty-redis-connector",
-  tag = "v0.04"
+  tag = "v0.05"
 }
 description = {
   summary = "Connection utilities for lua-resty-redis.",
