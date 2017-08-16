@@ -103,11 +103,28 @@ local DEFAULTS = setmetatable({
     role = "master",  -- master | slave | any
     sentinels = {},
 
+    -- Redis proxies typically don't support full Redis capabilities
+    connection_is_proxied = false,
+
+    disabled_commands = {},
+
 }, fixed_field_metatable)
 
 
+-- This is the set of commands unsupported by Twemproxy
+local default_disabled_commands = {
+    "migrate", "move", "object", "randomkey", "rename", "renamenx", "scan",
+    "bitop", "msetnx", "blpop", "brpop", "brpoplpush", "psubscribe", "publish",
+    "punsubscribe", "subscribe", "unsubscribe", "discard", "exec", "multi",
+    "unwatch", "watch", "script", "auth", "echo", "select", "bgrewriteaof",
+    "bgsave", "client", "config", "dbsize", "debug", "flushall", "flushdb",
+    "info", "lastsave", "monitor", "save", "shutdown", "slaveof", "slowlog",
+    "sync", "time"
+}
+
+
 local _M = {
-    _VERSION = '0.04',
+    _VERSION = '0.05',
 }
 
 local mt = { __index = _M }
@@ -118,6 +135,13 @@ function _M.new(config)
     if not ok then
         return nil, config  -- err
     else
+        -- In proxied Redis mode disable default commands
+        if config.connection_is_proxied == true and
+            not next(config.disabled_commands) then
+
+            config.disabled_commands = default_disabled_commands
+        end
+
         return setmetatable({
             config = setmetatable(config, fixed_field_metatable)
         }, mt)
@@ -135,6 +159,7 @@ local function parse_dsn(params)
             return nil, "could not parse DSN: " .. tostring(err)
         end
 
+        -- TODO: Support a 'protocol' for proxied Redis?
         local fields
         if m[1] == "redis" then
             fields = { "password", "host", "port", "db" }
@@ -265,6 +290,15 @@ function _M.connect_to_host(self, host)
     local config = self.config
     r:set_timeout(config.connect_timeout)
 
+    -- Stub out methods for disabled commands
+    if next(config.disabled_commands) then
+        for _, cmd in ipairs(config.disabled_commands) do
+            r[cmd] = function(...)
+                return nil, ("Command "..cmd.." is disabled")
+            end
+        end
+    end
+
     local ok, err
     local path = host.path
     local opts = config.connection_options
@@ -296,7 +330,8 @@ function _M.connect_to_host(self, host)
             end
         end
 
-        if host.db ~= nil then
+        -- No support for DBs in proxied Redis.
+        if config.connection_is_proxied ~= true and host.db ~= nil then
             r:select(host.db)
         end
         return r, nil
@@ -307,7 +342,10 @@ end
 local function set_keepalive(self, redis)
     -- Restore connection to "NORMAL" before putting into keepalive pool,
     -- ignoring any errors.
-    redis:discard()
+    -- Proxied Redis does not support transactions.
+    if self.config.connection_is_proxied ~= true then
+        redis:discard()
+    end
 
     local config = self.config
     return redis:set_keepalive(
