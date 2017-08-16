@@ -223,8 +223,8 @@ location /t {
             path = "unix://tmp/redis.sock",
         }):connect()
 
-		assert(not redis and err == "no such file or directory",
-			"bad domain socket should fail")
+        assert(not redis and err == "no such file or directory",
+            "bad domain socket should fail")
     }
 }
 --- request
@@ -241,13 +241,13 @@ location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector")
 
-		local params = {
-			url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4"
-		}
+        local user_params = {
+            url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4"
+        }
 
-		local ok, err = rc.parse_dsn(params)
-		assert(ok and not err,
-			"url should parse without error: " .. tostring(err))
+        local params, err = rc.parse_dsn(user_params)
+        assert(params and not err,
+            "url should parse without error: " .. tostring(err))
 
 		assert(params.host == "127.0.0.1", "host should be localhost")
 		assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT,
@@ -256,12 +256,12 @@ location /t {
 		assert(params.password == "foo", "password should be foo")
 
 
-		local params = {
+		local user_params = {
 			url = "sentinel://foo@foomaster:s/2"
 		}
 
-		local ok, err = rc.parse_dsn(params)
-		assert(ok and not err,
+		local params, err = rc.parse_dsn(user_params)
+		assert(params and not err,
 			"url should parse without error: " .. tostring(err))
 
 		assert(params.master_name == "foomaster", "master_name should be foomaster")
@@ -276,6 +276,84 @@ location /t {
 		local ok, err = rc.parse_dsn(params)
 		assert(not ok and err == "could not parse DSN: nil",
 			"url should fail to parse")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 9: params override dsn components
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector")
+
+        local user_params = {
+            url = "redis://foo@127.0.0.1:6381/4",
+            db = 2,
+            password = "bar",
+            host = "example.com",
+        }
+
+        local params, err = rc.parse_dsn(user_params)
+        assert(params and not err,
+            "url should parse without error: " .. tostring(err))
+
+        assert(tonumber(params.db) == 2, "db should be 2")
+        assert(params.password == "bar", "password should be bar")
+        assert(params.host == "example.com", "host should be example.com")
+
+        assert(tonumber(params.port) == 6381, "ort should still be 6381")
+
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 9: Integration test for parse_dsn
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local user_params = {
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
+            db = 2,
+            host = "127.0.0.1",
+        }
+
+        local rc, err = require("resty.redis.connector").new(user_params)
+        assert(rc and not err, "new should return positively")
+
+        local redis, err = rc:connect()
+        assert(redis and not err, "connect should return positively")
+        assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
+
+        local redis, err = rc:connect({
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
+            db = 2,
+            host = "127.0.0.1",
+        })
+        assert(redis and not err, "connect should return positively")
+        assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
+
+
+        local rc2, err = require("resty.redis.connector").new()
+        local redis, err = rc2:connect({
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
+            db = 2,
+            host = "127.0.0.1",
+        })
+        assert(redis and not err, "connect should return positively")
+        assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
+
     }
 }
 --- request

@@ -100,7 +100,7 @@ local DEFAULTS = setmetatable({
     url = "", -- DSN url
 
     master_name = "mymaster",
-    role = "master",  -- master | slave | any
+    role = "master",  -- master | slave
     sentinels = {},
 
     -- Redis proxies typically don't support full Redis capabilities
@@ -124,29 +124,10 @@ local default_disabled_commands = {
 
 
 local _M = {
-    _VERSION = '0.05',
+    _VERSION = '0.06',
 }
 
 local mt = { __index = _M }
-
-
-function _M.new(config)
-    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
-    if not ok then
-        return nil, config  -- err
-    else
-        -- In proxied Redis mode disable default commands
-        if config.connection_is_proxied == true and
-            not next(config.disabled_commands) then
-
-            config.disabled_commands = default_disabled_commands
-        end
-
-        return setmetatable({
-            config = setmetatable(config, fixed_field_metatable)
-        }, mt)
-    end
-end
 
 
 local function parse_dsn(params)
@@ -170,28 +151,57 @@ local function parse_dsn(params)
         -- password may not be present
         if #m < 5 then tbl_remove(fields, 1) end
 
-        local roles = { m = "master", s = "slave", a = "any" }
+        local roles = { m = "master", s = "slave" }
+
+        local parsed_params = {}
 
         for i,v in ipairs(fields) do
-            params[v] = m[i + 1]
+            parsed_params[v] = m[i + 1]
             if v == "role" then
-                params[v] = roles[params[v]]
+                parsed_params[v] = roles[parsed_params[v]]
             end
         end
-    end
 
-    return true, nil
+        return tbl_copy_merge_defaults(params, parsed_params)
+    end
 end
 _M.parse_dsn = parse_dsn
 
 
-function _M.connect(self, params)
-    local params = tbl_copy_merge_defaults(params, self.config)
-
-    if params.url then
-        local ok, err = parse_dsn(params)
+function _M.new(config)
+    -- Fill out gaps in config with any dsn params
+    if config and config.url then
+        local err
+        config, err = parse_dsn(config)
         if not ok then ngx_log(ngx_ERR, err) end
     end
+
+    local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
+    if not ok then
+        return nil, config  -- err
+    else
+        -- In proxied Redis mode disable default commands
+        if config.connection_is_proxied == true and
+            not next(config.disabled_commands) then
+
+            config.disabled_commands = default_disabled_commands
+        end
+
+        return setmetatable({
+            config = setmetatable(config, fixed_field_metatable)
+        }, mt)
+    end
+end
+
+
+function _M.connect(self, params)
+    if params and params.url then
+        local err
+        params, err = parse_dsn(params)
+        if not ok then ngx_log(ngx_ERR, err) end
+    end
+
+    params = tbl_copy_merge_defaults(params, self.config)
 
     if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
@@ -222,7 +232,7 @@ function _M.connect_via_sentinel(self, params)
         return nil, err, previous_errors
     end
 
-    if role == "master" or role == "any" then
+    if role == "master" then
         local master, err = get_master(sentnl, master_name)
         if master then
             master.db = db
@@ -238,31 +248,32 @@ function _M.connect_via_sentinel(self, params)
                 end
             end
         end
-    end
 
-    -- We either wanted a slave, or are failing over to a slave "any"
-    local slaves, err = get_slaves(sentnl, master_name)
-    sentnl:set_keepalive()
-
-    if not slaves then
-        return nil, err
-    end
-
-    -- Put any slaves on 127.0.0.1 at the front
-    tbl_sort(slaves, sort_by_localhost)
-
-    if db or password then
-        for i,slave in ipairs(slaves) do
-            slave.db = db
-            slave.password = password
-        end
-    end
-
-    local slave, err, previous_errors = self:try_hosts(slaves)
-    if not slave then
-        return nil, err, previous_errors
     else
-        return slave
+        -- We want a slave
+        local slaves, err = get_slaves(sentnl, master_name)
+        sentnl:set_keepalive()
+
+        if not slaves then
+            return nil, err
+        end
+
+        -- Put any slaves on 127.0.0.1 at the front
+        tbl_sort(slaves, sort_by_localhost)
+
+        if db or password then
+            for i,slave in ipairs(slaves) do
+                slave.db = db
+                slave.password = password
+            end
+        end
+
+        local slave, err, previous_errors = self:try_hosts(slaves)
+        if not slave then
+            return nil, err, previous_errors
+        else
+            return slave
+        end
     end
 end
 

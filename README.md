@@ -39,7 +39,7 @@ local rc = require("resty.redis.connector").new({
     connect_timeout = 50,
     read_timeout = 5000,
     keepalive_timeout = 30000,
-    
+
     host = "127.0.0.1",
     port = 6379,
     db = 2,
@@ -53,7 +53,7 @@ local redis, err = rc:connect()
 local ok, err = rc:set_keepalive(redis)
 ```
 
-`connect` can be used to override defaults given in `new`
+[connect](#connect) can be used to override some defaults given in [new](#new), which are pertinent to this connection only.
 
 
 ```lua
@@ -71,7 +71,9 @@ local redis, err = rc:connect({
 
 ## DSN format
 
-If the `params.url` field is present then it will be parsed, overriding values supplied in the parameters table.
+If the `params.url` field is present then it will be parsed to set the other params. Any manually specified params will override values given in the DSN.
+
+*Note: this is a behaviour change as of v0.06. Previously, the DSN values would take precedence.*
 
 ### Direct Redis connections
 
@@ -87,11 +89,7 @@ When connecting via Redis Sentinel, the format is as follows:
 
 `sentinel://PASSWORD@MASTER_NAME:ROLE/DB`
 
-Again, `PASSWORD` and `DB` are optional. `ROLE` must be any of `m`, `s` or `a`, meaning:
-
-* `m`: master
-* `s`: slave
-* `a`: any (first tries the master, but will failover to a slave if required)
+Again, `PASSWORD` and `DB` are optional. `ROLE` must be either `m` or `s` for master / slave respectively.
 
 A table of `sentinels` must also be supplied. e.g.
 
@@ -106,11 +104,11 @@ local redis, err = rc:connect{
 
 ## Proxy Mode
 
-Enable the `connection_is_proxied` parameter if connecting to Redis through a proxy service (e.g. Twemproxy).  
-These proxies generally only support a limited sub-set of Redis commands, those which do not require state and do not affect multiple keys.  
+Enable the `connection_is_proxied` parameter if connecting to Redis through a proxy service (e.g. Twemproxy).
+These proxies generally only support a limited sub-set of Redis commands, those which do not require state and do not affect multiple keys.
 Databases and transactions are also not supported.
 
-Proxy mode will disable switching to a DB on connect.  
+Proxy mode will disable switching to a DB on connect.
 Unsupported commands (defaults to those not supported by Twemproxy) will return `nil, err` immediately rather than being sent to the proxy, which can result in dropped connections.
 
 `discard` will not be sent when adding connections to the keepalive pool
@@ -138,7 +136,7 @@ If configured as a table of commands, the command methods will be replaced by a 
     db = 0,
 
     master_name = "mymaster",
-    role = "master",  -- master | slave | any
+    role = "master",  -- master | slave
     sentinels = {},
 
     connection_is_proxied = false,
@@ -173,6 +171,13 @@ Creates the Redis Connector object, overring default params with the ones given.
 `syntax: redis, err = rc:connect(params)`
 
 Attempts to create a connection, according to the [params](#parameters) supplied, falling back to defaults given in `new` or the predefined defaults. If a connection cannot be made, returns `nil` and a string describing the reason.
+
+Note that `params` given here do not change the connector's own configuration, and are only used to alter this particular connection operation. As such, the following parameters have no meaning when given in `connect`.
+
+* `keepalive_poolsize`
+* `keepalive_timeout`
+* `connection_is_proxied`
+* `disabled_commands`
 
 
 ### set_keepalive
