@@ -173,7 +173,7 @@ function _M.new(config)
     if config and config.url then
         local err
         config, err = parse_dsn(config)
-        if not ok then ngx_log(ngx_ERR, err) end
+        if not config then ngx_log(ngx_ERR, err) end
     end
 
     local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
