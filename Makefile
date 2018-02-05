@@ -76,6 +76,9 @@ install: all
 test: test_redis
 test_all: start_redis_instances sleep test_redis stop_redis_instances
 
+check:
+	luacheck lib
+
 sleep:
 	sleep 3
 
