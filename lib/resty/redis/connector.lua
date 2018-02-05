@@ -198,7 +198,7 @@ function _M.connect(self, params)
     if params and params.url then
         local err
         params, err = parse_dsn(params)
-        if not ok then ngx_log(ngx_ERR, err) end
+        if not params then ngx_log(ngx_ERR, err) end
     end
 
     params = tbl_copy_merge_defaults(params, self.config)
