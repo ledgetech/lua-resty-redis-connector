@@ -9,7 +9,7 @@ local tbl_remove = table.remove
 local tbl_sort = table.sort
 local ok, tbl_new = pcall(require, "table.new")
 if not ok then
-    tbl_new = function (narr, nrec) return {} end
+    tbl_new = function (narr, nrec) return {} end -- luacheck: ignore 212
 end
 
 local redis = require("resty.redis")
@@ -22,11 +22,11 @@ local get_slaves = require("resty.redis.sentinel").get_slaves
 -- A metatable which prevents undefined fields from being created / accessed
 local fixed_field_metatable = {
     __index =
-        function(t, k)
+        function(t, k) -- luacheck: ignore 212
             error("field " .. tostring(k) .. " does not exist", 3)
         end,
     __newindex =
-        function(t, k, v)
+        function(t, k, v) -- luacheck: ignore 212
             error("attempt to create new field " .. tostring(k), 3)
         end,
 }
@@ -66,7 +66,6 @@ local function tbl_copy_merge_defaults(t1, defaults)
     if t1 == nil then t1 = {} end
     if defaults == nil then defaults = {} end
     if type(t1) == "table" and type(defaults) == "table" then
-        local mt = getmetatable(defaults)
         local copy = {}
         for t1_key, t1_value in next, t1, nil do
             copy[tbl_copy(t1_key)] = tbl_copy_merge_defaults(
@@ -164,6 +163,8 @@ local function parse_dsn(params)
 
         return tbl_copy_merge_defaults(params, parsed_params)
     end
+
+    return params
 end
 _M.parse_dsn = parse_dsn
 
@@ -173,7 +174,7 @@ function _M.new(config)
     if config and config.url then
         local err
         config, err = parse_dsn(config)
-        if not config then ngx_log(ngx_ERR, err) end
+        if err then ngx_log(ngx_ERR, err) end
     end
 
     local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
@@ -198,7 +199,7 @@ function _M.connect(self, params)
     if params and params.url then
         local err
         params, err = parse_dsn(params)
-        if not params then ngx_log(ngx_ERR, err) end
+        if err then ngx_log(ngx_ERR, err) end
     end
 
     params = tbl_copy_merge_defaults(params, self.config)
@@ -234,18 +235,20 @@ function _M.connect_via_sentinel(self, params)
 
     if role == "master" then
         local master, err = get_master(sentnl, master_name)
-        if master then
-            master.db = db
-            master.password = password
+        if not master then
+            return nil, err
+        end
 
-            local redis, err = self:connect_to_host(master)
-            if redis then
-                sentnl:set_keepalive()
-                return redis, err
-            else
-                if role == "master" then
-                    return nil, err
-                end
+        master.db = db
+        master.password = password
+
+        local redis, err = self:connect_to_host(master)
+        if redis then
+            sentnl:set_keepalive()
+            return redis, err
+        else
+            if role == "master" then
+                return nil, err
             end
         end
 
@@ -262,7 +265,7 @@ function _M.connect_via_sentinel(self, params)
         tbl_sort(slaves, sort_by_localhost)
 
         if db or password then
-            for i,slave in ipairs(slaves) do
+            for _, slave in ipairs(slaves) do
                 slave.db = db
                 slave.password = password
             end
@@ -304,7 +307,7 @@ function _M.connect_to_host(self, host)
     -- Stub out methods for disabled commands
     if next(config.disabled_commands) then
         for _, cmd in ipairs(config.disabled_commands) do
-            r[cmd] = function(...)
+            r[cmd] = function()
                 return nil, ("Command "..cmd.." is disabled")
             end
         end

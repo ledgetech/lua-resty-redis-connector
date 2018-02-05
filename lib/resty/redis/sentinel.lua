@@ -5,7 +5,7 @@ local ngx_null = ngx.null
 local tbl_insert = table.insert
 local ok, tbl_new = pcall(require, "table.new")
 if not ok then
-    tbl_new = function (narr, nrec) return {} end
+    tbl_new = function (narr, nrec) return {} end -- luacheck: ignore 212
 end
 
 
