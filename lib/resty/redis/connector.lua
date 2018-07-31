@@ -333,7 +333,7 @@ function _M.connect_to_host(self, host)
     if not ok then
         return nil, err
     else
-        r:set_timeout(self, config.read_timeout)
+        r:set_timeout(config.read_timeout)
 
         local password = host.password
         if password and password ~= "" then
