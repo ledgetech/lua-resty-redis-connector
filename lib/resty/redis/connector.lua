@@ -301,7 +301,17 @@ end
 
 function _M.connect_to_host(self, host)
     local r = redis.new()
-    local config = self.config
+
+    -- config options in 'host' should override the global defaults
+    -- host contains keys that aren't in config
+    -- this can break tbl_copy_merge_defaults, hence the mannual loop here
+    local config = tbl_copy(self.config)
+    for k, _ in pairs(config) do
+        if host[k] then
+            config[k] = host[k]
+        end
+    end
+
     r:set_timeout(config.connect_timeout)
 
     -- Stub out methods for disabled commands
