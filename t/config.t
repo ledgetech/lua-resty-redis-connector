@@ -84,8 +84,11 @@ location /t {
         assert(rc.config.keepalive_poolsize == 10,
             "keepalive_poolsize should be 10")
 
-        local redis = assert(rc:connect({ port = 6379 }),
+        local redis = assert(rc:connect({ port = 6379, disabled_commands = {"set"} }),
             "rc:connect should return positively")
+
+        local ok, err = redis:set("foo", "bar")
+            assert( ok == nil and (string.find(err, "disabled") ~= nil) , "Disabled commands not passed through" )
     }
 }
 --- request
