@@ -1,7 +1,7 @@
 package = "lua-resty-redis-connector"
-version = "0.07-0"
+version = "0.07-1"
 source = {
-  url = "git://github.com/pintsized/lua-resty-redis-connector",
+  url = "git://github.com/ledgetech/lua-resty-redis-connector",
   tag = "v0.07"
 }
 description = {
@@ -11,7 +11,7 @@ description = {
     reliable to connect to Redis hosts, either directly or via Redis
     Sentinel.
   ]],
-  homepage = "https://github.com/pintsized/lua-resty-redis-connector",
+  homepage = "https://github.com/ledgetech/lua-resty-redis-connector",
   license = "2-clause BSD",
   maintainer = "James Hurst <james@pintsized.co.uk>"
 }
