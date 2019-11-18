@@ -13,6 +13,7 @@ init_by_lua_block {
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
 $ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
+$ENV{TEST_NGINX_REDIS_SOCKET} ||= 'unix://tmp/redis/redis.sock';
 
 no_long_string();
 run_tests();
@@ -213,18 +214,42 @@ GET /t
 ERR Client sent AUTH, but no password is set
 
 
-=== TEST 7: unix domain socket
+=== TEST 7: Bad unix domain socket path should fail
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
         local redis,  err = require("resty.redis.connector").new({
-            path = "unix://tmp/redis.sock",
+            path = "unix://GARBAGE_PATH_AKFDKAJSFKJSAFLKJSADFLKJSANCKAJSNCKJSANCLKAJS",
         }):connect()
 
         assert(not redis and err == "no such file or directory",
             "bad domain socket should fail")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 7.1: Good unix domain socket path should succeed
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+      ngx.log (ngx.DEBUG, "$TEST_NGINX_REDIS_SOCKET")
+        local redis, err = require("resty.redis.connector").new({
+            path = "$TEST_NGINX_REDIS_SOCKET",
+        }):connect()
+
+        assert (redis and not err,
+            "connection should be valid")
+
+
+        redis:close()
     }
 }
 --- request
