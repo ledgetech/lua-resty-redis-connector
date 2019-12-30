@@ -95,6 +95,7 @@ local DEFAULTS = setmetatable({
     port = 6379,
     path = "", -- /tmp/redis.sock
     password = "",
+    sentinel_password = "",
     db = 0,
     url = "", -- DSN url
 
@@ -227,6 +228,12 @@ function _M.connect_via_sentinel(self, params)
     local role = params.role
     local db = params.db
     local password = params.password
+    local sentinel_password = params.sentinel_password
+    if sentinel_password then
+      for i,host in ipairs(sentinels) do
+        host.password = sentinel_password
+      end
+    end
 
     local sentnl, err, previous_errors = self:try_hosts(sentinels)
     if not sentnl then
