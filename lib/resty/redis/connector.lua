@@ -5,6 +5,7 @@ local ngx_log = ngx.log
 local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
 
+local str_find = string.find
 local tbl_remove = table.remove
 local tbl_sort = table.sort
 local ok, tbl_new = pcall(require, "table.new")
@@ -356,14 +357,24 @@ function _M.connect_to_host(self, host)
         if password and password ~= "" then
             local res, err = r:auth(password)
             if err then
-                ngx_log(ngx_ERR, err)
                 return res, err
             end
         end
 
         -- No support for DBs in proxied Redis.
         if config.connection_is_proxied ~= true and host.db ~= nil then
-            r:select(host.db)
+            local res, err = r:select(host.db)
+            -- SELECT will fail if we are connected to sentinel:
+            -- detect it and ignore error message it that's the case
+            if err and str_find(err, "ERR unknown command") then
+                local role = r:role()
+                if role and role[1] == "sentinel" then
+                    err = nil
+                end
+            end
+            if err then
+                return res, err
+            end
         end
         return r, nil
     end

@@ -210,8 +210,8 @@ location /t {
 }
 --- request
 GET /t
---- error_log
-ERR Client sent AUTH, but no password is set
+--- no_error_log
+[error]
 
 
 === TEST 7: Bad unix domain socket path should fail
