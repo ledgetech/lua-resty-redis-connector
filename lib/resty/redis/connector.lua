@@ -381,7 +381,7 @@ function _M.connect_to_host(self, host)
 end
 
 
-local function set_keepalive(self, redis)
+function _M.set_keepalive(self, redis)
     -- Restore connection to "NORMAL" before putting into keepalive pool,
     -- ignoring any errors.
     -- Proxied Redis does not support transactions.
@@ -394,8 +394,6 @@ local function set_keepalive(self, redis)
         config.keepalive_timeout, config.keepalive_poolsize
     )
 end
-_M.set_keepalive = set_keepalive
-
 
 
 -- Deprecated: use config table in new() or connect() instead.
