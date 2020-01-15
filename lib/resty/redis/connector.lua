@@ -263,11 +263,11 @@ function _M.connect_via_sentinel(self, params)
     else
         -- We want a slave
         local slaves, err = get_slaves(sentnl, master_name)
-        sentnl:set_keepalive()
-
         if not slaves then
             return nil, err
         end
+
+        sentnl:set_keepalive()
 
         -- Put any slaves on 127.0.0.1 at the front
         tbl_sort(slaves, sort_by_localhost)
@@ -282,9 +282,9 @@ function _M.connect_via_sentinel(self, params)
         local slave, err, previous_errors = self:try_hosts(slaves)
         if not slave then
             return nil, err, previous_errors
-        else
-            return slave
         end
+
+        return slave
     end
 end
 
