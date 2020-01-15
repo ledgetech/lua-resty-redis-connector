@@ -247,19 +247,17 @@ function _M.connect_via_sentinel(self, params)
             return nil, err
         end
 
+        sentnl:set_keepalive()
+
         master.db = db
         master.password = password
 
         local redis, err = self:connect_to_host(master)
-        if redis then
-            sentnl:set_keepalive()
-            return redis, err
-        else
-            if role == "master" then
-                return nil, err
-            end
+        if not redis then
+            return nil, err
         end
 
+        return redis
     else
         -- We want a slave
         local slaves, err = get_slaves(sentnl, master_name)
