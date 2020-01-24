@@ -1,5 +1,5 @@
 package = "lua-resty-redis-connector"
-version = "0.08"
+version = "0.08-0"
 source = {
   url = "git://github.com/ledgetech/lua-resty-redis-connector",
   tag = "v0.08"
