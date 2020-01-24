@@ -91,6 +91,8 @@ When connecting via Redis Sentinel, the format is as follows:
 
 Again, `PASSWORD` and `DB` are optional. `ROLE` must be either `m` or `s` for master / slave respectively.
 
+On versions of Redis newer than 5.0.1, Sentinels can optionally require their own password. If enabled, provide this password in the `sentinel_password` parameter.
+
 A table of `sentinels` must also be supplied. e.g.
 
 ```lua
@@ -98,7 +100,8 @@ local redis, err = rc:connect{
     url = "sentinel://mymaster:a/2",
     sentinels = {
         { host = "127.0.0.1", port = 26379 },
-    }
+    },
+    sentinel_password = "password"
 }
 ```
 
@@ -133,6 +136,7 @@ If configured as a table of commands, the command methods will be replaced by a 
     port = "6379",
     path = "",  -- unix socket path, e.g. /tmp/redis.sock
     password = "",
+    sentinel_password = "",
     db = 0,
 
     master_name = "mymaster",
