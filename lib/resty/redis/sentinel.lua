@@ -41,7 +41,6 @@ function _M.get_slaves(sentinel, master_name)
 
             local master_link_status_ok = host["master-link-status"] == "ok"
             local is_down = host["flags"] and (string.find(host["flags"],"s_down")
-                or string.find(host["flags"],"o_down")
                 or string.find(host["flags"],"disconnected"))
             if master_link_status_ok and not is_down then
                 host.host = host.ip -- for parity with other functions
