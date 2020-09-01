@@ -38,6 +38,7 @@ env:
     - NGINX_VERSION=1.17.8
 
 before_install:
+  - sudo luarocks install luacov
   - sudo luarocks install luacheck $LUACHECK_VER
   - luacheck -q .
 
