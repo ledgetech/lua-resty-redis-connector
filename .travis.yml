@@ -39,6 +39,7 @@ env:
 
 before_install:
   - sudo luarocks install luacov
+  - sudo luarocks install lua-resty-redis
   - sudo luarocks install luacheck $LUACHECK_VER
   - luacheck -q .
 
