@@ -8,7 +8,7 @@ SENTINEL_TEST_FILE ?= $(TEST_FILE)/sentinel
 REDIS_CMD           = redis-server
 SENTINEL_CMD        = $(REDIS_CMD) --sentinel
 
-REDIS_SOCK          = /redis.sock
+REDIS_SOCK          = .sock
 REDIS_PID           = /redis.pid
 REDIS_LOG           = /redis.log
 REDIS_PREFIX        = /tmp/redis-
