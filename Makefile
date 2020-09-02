@@ -101,6 +101,7 @@ start_redis_instances: check_ports create_sentinel_config
 	) true
 
 	ps ux | grep redis
+	sudo cat /var/log/redis.log
 
 stop_redis_instances: delete_sentinel_config
 	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
@@ -112,7 +113,6 @@ stop_redis_instances: delete_sentinel_config
 start_redis_instance:
 	-@echo "Starting redis on port $(port) with args: \"$(args)\""
 	mkdir -p $(prefix)
-	touch $(prefix)$(REDIS_SOCK)
 	$(REDIS_CMD) $(args) \
 		--pidfile $(prefix)$(REDIS_PID) \
 		--bind 127.0.0.1 --port $(port) \
