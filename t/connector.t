@@ -133,7 +133,7 @@ location /t {
         local redis, err = assert(rc:connect_to_host({
             host = "127.0.0.1",
             db = 1,
-            port = $TEST_REDIS_PORT
+            port = $TEST_NGINX_REDIS_PORT
         }), "connect_to_host should return positively")
 
         assert(redis:set("dog", "an animal") == "OK",
@@ -240,14 +240,12 @@ GET /t
 location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
-      ngx.log (ngx.DEBUG, "$TEST_NGINX_REDIS_SOCKET")
         local redis, err = require("resty.redis.connector").new({
-            path = "$TEST_REDIS_SOCKET",
+            path = "$TEST_NGINX_REDIS_SOCKET",
         }):connect()
 
         assert (redis and not err,
             "connection should be valid")
-
 
         redis:close()
     }

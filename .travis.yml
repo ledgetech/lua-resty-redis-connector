@@ -76,4 +76,4 @@ script:
   - nginx -V
   - ldd `which nginx`|grep -E 'luajit|ssl|pcre'
   - mkdir -p tmp
-  - TMP_DIR=$PWD/tmp TEST_FILE=t/connector.t make test_all
+  - TMP_DIR=$PWD/tmp make test_all
