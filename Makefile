@@ -56,7 +56,7 @@ TEST_NGINX_NO_SHUFFLE=1
 
 # Sentinel configuration can only be set by a config file
 define TEST_SENTINEL_CONFIG
-sentinel       monitor $(TEST_SENTINEL_MASTER_NAME) 127.0.0.1 $(REDIS_FIRST_PORT) 2
+sentinel       monitor $(TEST_SENTINEL_MASTER_NAME) 127.0.0.1 $(TEST_REDIS_PORT) 2
 sentinel       down-after-milliseconds $(TEST_SENTINEL_MASTER_NAME) 2000
 sentinel       failover-timeout $(TEST_SENTINEL_MASTER_NAME) 10000
 sentinel       parallel-syncs $(TEST_SENTINEL_MASTER_NAME) 5
