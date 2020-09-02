@@ -240,14 +240,12 @@ GET /t
 location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
-      ngx.log (ngx.DEBUG, "$TEST_NGINX_REDIS_SOCKET")
         local redis, err = require("resty.redis.connector").new({
             path = "$TEST_NGINX_REDIS_SOCKET",
         }):connect()
 
         assert (redis and not err,
             "connection should be valid")
-
 
         redis:close()
     }
@@ -318,7 +316,7 @@ location /t {
         local rc = require("resty.redis.connector")
 
         local user_params = {
-            url = "redis://foo@127.0.0.1:6381/4",
+            url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4",
             db = 2,
             password = "bar",
             host = "example.com",
@@ -332,7 +330,7 @@ location /t {
         assert(params.password == "bar", "password should be bar")
         assert(params.host == "example.com", "host should be example.com")
 
-        assert(tonumber(params.port) == 6381, "ort should still be 6381")
+        assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT, "port should still be $TEST_NGINX_REDIS_PORT")
 
     }
 }

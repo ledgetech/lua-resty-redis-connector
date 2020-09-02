@@ -230,7 +230,7 @@ function _M.connect_via_sentinel(self, params)
     local password = params.password
     local sentinel_password = params.sentinel_password
     if sentinel_password then
-        for i,host in ipairs(sentinels) do
+        for _,host in ipairs(sentinels) do
             host.password = sentinel_password
         end
     end
