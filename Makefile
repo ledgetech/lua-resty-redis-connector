@@ -83,6 +83,8 @@ sleep:
 	sleep 3
 
 start_redis_instances: check_ports create_sentinel_config
+	$(REDIS_CMD) --version
+
 	@$(foreach port,$(TEST_REDIS_PORTS), \
 		[[ "$(port)" != "$(REDIS_FIRST_PORT)" ]] && \
 			SLAVE="$(REDIS_SLAVE_ARG)" || \
@@ -146,6 +148,7 @@ check_ports:
 test_redis: flush_db
 	util/lua-releng
 	@rm -f luacov.stats.out
+	ls -l $(TEST_REDIS_SOCKET)
 	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	@luacov
 	@tail -7 luacov.report.out
