@@ -30,7 +30,7 @@ location /t {
 	content_by_lua_block {
 		local rc = require("resty.redis.connector").new()
 
-		local sentinel, err = rc:connect{ url = "redis://"127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
+		local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
 		assert(sentinel and not err, "sentinel should connect without errors")
 
 		local master, err = require("resty.redis.sentinel").get_master(
