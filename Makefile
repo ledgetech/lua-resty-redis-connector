@@ -97,7 +97,7 @@ start_redis_instances: check_ports create_sentinel_config
 	$(REDIS_CMD) --version
 
 	@$(foreach port,$(TEST_REDIS_PORTS), \
-		[[ "$(port)" != "$(REDIS_FIRST_PORT)" ]] && \
+		[[ "$(port)" != "$(TEST_REDIS_PORT)" ]] && \
 			SLAVE="$(REDIS_SLAVE_ARG)" || \
 			SLAVE="" && \
 		$(MAKE) start_redis_instance args="$$SLAVE" port=$(port) \
