@@ -100,6 +100,7 @@ start_redis_instances: check_ports create_sentinel_config
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true
 
+	ps ux | grep redis
 
 stop_redis_instances: delete_sentinel_config
 	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
