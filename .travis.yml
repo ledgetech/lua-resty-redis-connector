@@ -12,6 +12,7 @@ addons:
     packages:
       - luarocks
       - redis
+      - lsof
 
 cache:
   directories:
