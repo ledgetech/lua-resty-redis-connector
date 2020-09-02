@@ -111,6 +111,7 @@ stop_redis_instances: delete_sentinel_config
 start_redis_instance:
 	-@echo "Starting redis on port $(port) with args: \"$(args)\""
 	mkdir -p $(prefix)
+	touch $(prefix)$(REDIS_SOCK)
 	$(REDIS_CMD) $(args) \
 		--pidfile $(prefix)$(REDIS_PID) \
 		--bind 127.0.0.1 --port $(port) \
