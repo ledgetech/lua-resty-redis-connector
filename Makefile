@@ -3,6 +3,7 @@ SHELL := /bin/bash # Cheat by using bash :)
 OPENRESTY_PREFIX    = /usr/local/openresty
 
 TEST_FILE          ?= t
+TMP_DIR			   ?= /tmp
 SENTINEL_TEST_FILE ?= $(TEST_FILE)/sentinel
 
 REDIS_CMD           = redis-server
@@ -11,7 +12,7 @@ SENTINEL_CMD        = $(REDIS_CMD) --sentinel
 REDIS_SOCK          = /redis.sock
 REDIS_PID           = /redis.pid
 REDIS_LOG           = /redis.log
-REDIS_PREFIX        = /tmp/redis-
+REDIS_PREFIX        = $(TMP_DIR)/redis-
 
 # Overrideable redis test variables
 TEST_REDIS_PORTS              ?= 6379 6380 6378
@@ -146,7 +147,6 @@ check_ports:
 	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
 test_redis: flush_db
-	cat /var/log/redis/redis.log
 	util/lua-releng
 	@rm -f luacov.stats.out
 	ls -l $(TEST_REDIS_SOCKET)
