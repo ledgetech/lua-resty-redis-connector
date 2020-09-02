@@ -12,6 +12,7 @@ init_by_lua_block {
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
+$ENV{TEST_NGINX_REDIS_PORT} ||= 6380;
 $ENV{TEST_NGINX_REDIS_PORT_SL1} ||= 6381;
 $ENV{TEST_NGINX_REDIS_PORT_SL2} ||= 6382;
 $ENV{TEST_NGINX_SENTINEL_PORT1} ||= 6390;
@@ -40,8 +41,8 @@ location /t {
 
 		assert(master and not err, "get_master should return the master")
 
-		assert(master.host == "127.0.0.1" and tonumber(master.port) == $TEST_NGINX_SENTINEL_PORT1,
-			"host should be 127.0.0.1 and port should be $TEST_NGINX_SENTINEL_PORT1")
+		assert(master.host == "127.0.0.1" and tonumber(master.port) == $TEST_NGINX_REDIS_PORT,
+			"host should be 127.0.0.1 and port should be $TEST_NGINX_REDIS_PORT")
 
 		sentinel:close()
 	}
