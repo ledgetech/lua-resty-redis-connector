@@ -1,5 +1,7 @@
 # lua-resty-redis-connector
 
+[![Build Status](https://travis-ci.org/ledgetech/lua-resty-redis-connector.svg?branch=master)](https://travis-ci.org/ledgetech/lua-resty-redis-connector)
+
 Connection utilities for [lua-resty-redis](https://github.com/openresty/lua-resty-redis), making it easy and reliable to connect to Redis hosts, either directly or via [Redis Sentinel](http://redis.io/topics/sentinel).
 
 
