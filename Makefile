@@ -15,31 +15,39 @@ REDIS_LOG           = /redis.log
 REDIS_PREFIX        = $(TMP_DIR)/redis-
 
 # Overrideable redis test variables
-TEST_REDIS_PORTS              ?= 6380 6381 6382
-TEST_REDIS_DATABASE           ?= 1
+TEST_REDIS_PORT              ?= 6380
+TEST_REDIS_PORT_SL1          ?= 6381
+TEST_REDIS_PORT_SL2          ?= 6382
+TEST_REDIS_DATABASE          ?= 1
+TEST_REDIS_SOCKET            ?= $(REDIS_PREFIX)$(TEST_REDIS_PORT)$(REDIS_SOCK)
 
-REDIS_FIRST_PORT                    := $(firstword $(TEST_REDIS_PORTS))
-REDIS_SLAVE_ARG                     := --slaveof 127.0.0.1 $(REDIS_FIRST_PORT)
-REDIS_CLI                           := redis-cli -p $(REDIS_FIRST_PORT) -n $(TEST_REDIS_DATABASE)
-
-# Override socket for running make test on its own
-# (make test TEST_REDIS_SOCKET=/path/to/sock.sock)
-TEST_REDIS_SOCKET             ?= $(REDIS_PREFIX)$(REDIS_FIRST_PORT)$(REDIS_SOCK)
+REDIS_SLAVE_ARG                     := --slaveof 127.0.0.1 $(TEST_REDIS_PORT)
+REDIS_CLI                           := redis-cli -p $(TEST_REDIS_PORT) -n $(TEST_REDIS_DATABASE)
 
 # Overrideable redis + sentinel test variables
-TEST_SENTINEL_PORTS           ?= 6390 6391 6392
+TEST_SENTINEL_PORT1           ?= 6390
+TEST_SENTINEL_PORT2           ?= 6391
+TEST_SENTINEL_PORT3           ?= 6392
 TEST_SENTINEL_MASTER_NAME     ?= mymaster
 TEST_SENTINEL_PROMOTION_TIME  ?= 20
 
 # Command line arguments for redis tests
 TEST_REDIS_VARS     = PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$(PATH) \
-TEST_NGINX_REDIS_SOCKET=unix:$(TEST_REDIS_SOCKET) \
+TEST_REDIS_PORT=$(TEST_REDIS_PORT) \
+TEST_REDIS_PORT_SL1=$(TEST_REDIS_PORT_SL1) \
+TEST_REDIS_PORT_SL2=$(TEST_REDIS_PORT_SL2) \
+TEST_REDIS_SOCKET=unix:$(TEST_REDIS_SOCKET) \
 TEST_REDIS_DATABASE=$(TEST_REDIS_DATABASE) \
 TEST_NGINX_NO_SHUFFLE=1
 
 # Command line arguments for sentinel tests
 TEST_SENTINEL_VARS  = PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$(PATH) \
-TEST_SENTINEL_PORT=$(firstword $(TEST_SENTINEL_PORTS)) \
+TEST_REDIS_PORT=$(TEST_REDIS_PORT) \
+TEST_REDIS_PORT_SL1=$(TEST_REDIS_PORT_SL1) \
+TEST_REDIS_PORT_SL2=$(TEST_REDIS_PORT_SL2) \
+TEST_SENTINEL_PORT1=$(TEST_SENTINEL_PORT1) \
+TEST_SENTINEL_PORT2=$(TEST_SENTINEL_PORT2) \
+TEST_SENTINEL_PORT3=$(TEST_SENTINEL_PORT3) \
 TEST_SENTINEL_MASTER_NAME=$(TEST_SENTINEL_MASTER_NAME) \
 TEST_REDIS_DATABASE=$(TEST_REDIS_DATABASE) \
 TEST_NGINX_NO_SHUFFLE=1
@@ -100,9 +108,6 @@ start_redis_instances: check_ports create_sentinel_config
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true
 
-	ps ux | grep redis
-	sudo cat /var/log/redis/redis-server.log
-
 stop_redis_instances: delete_sentinel_config
 	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
 		$(MAKE) stop_redis_instance cleanup_redis_instance port=$(port) \
@@ -112,7 +117,7 @@ stop_redis_instances: delete_sentinel_config
 
 start_redis_instance:
 	-@echo "Starting redis on port $(port) with args: \"$(args)\""
-	mkdir -p $(prefix)
+	-@mkdir -p $(prefix)
 	$(REDIS_CMD) $(args) \
 		--pidfile $(prefix)$(REDIS_PID) \
 		--bind 127.0.0.1 --port $(port) \
@@ -151,7 +156,6 @@ check_ports:
 test_redis: flush_db
 	util/lua-releng
 	@rm -f luacov.stats.out
-	ls -l $(TEST_REDIS_SOCKET)
 	$(TEST_REDIS_VARS) $(PROVE) $(TEST_FILE)
 	@luacov
 	@tail -7 luacov.report.out

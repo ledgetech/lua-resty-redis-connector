@@ -15,7 +15,7 @@ init_by_lua_block {
 }
 };
 
-$ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
+$ENV{TEST_REDIS_PORT} ||= 6379;
 
 no_long_string();
 run_tests();
@@ -48,7 +48,7 @@ location /t {
     content_by_lua_block {
         local config = {
             connect_timeout = 500,
-            port = 6380,
+            port = $TEST_REDIS_PORT,
             db = 6,
         }
         local rc = require("resty.redis.connector").new(config)
@@ -72,7 +72,7 @@ location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new({
             connect_timeout = 500,
-            port = 6380,
+            port = $TEST_REDIS_PORT,
             db = 6,
             keepalive_poolsize = 10,
         })
@@ -84,7 +84,7 @@ location /t {
         assert(rc.config.keepalive_poolsize == 10,
             "keepalive_poolsize should be 10")
 
-        local redis = assert(rc:connect({ port = 6379, disabled_commands = {"set"} }),
+        local redis = assert(rc:connect({ port = $TEST_REDIS_PORT, disabled_commands = {"set"} }),
             "rc:connect should return positively")
 
         local ok, err = redis:set("foo", "bar")
@@ -104,7 +104,7 @@ location /t {
     content_by_lua_block {
         local rc, err = require("resty.redis.connector").new({
             connect_timeout = 500,
-            port = 6380,
+            port = $TEST_REDIS_PORT,
             db = 6,
             foo = "bar",
         })
@@ -123,7 +123,7 @@ location /t {
             keepalive_poolsize = 30,
 
             host = "127.0.0.1",
-            port = 6379,
+            port = $TEST_REDIS_PORT,
             path = "",
             password = "",
             db = 0,
@@ -147,7 +147,7 @@ location /t {
             keepalive_poolsize = 30,
 
             host = "127.0.0.1",
-            port = 6379,
+            port = $TEST_REDIS_PORT,
             path = "",
             password = "",
             db = 0,
