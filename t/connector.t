@@ -12,8 +12,8 @@ init_by_lua_block {
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
-$ENV{TEST_REDIS_PORT} ||= 6379;
-$ENV{TEST_REDIS_SOCKET} ||= 'unix://tmp/redis/redis.sock';
+$ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
+$ENV{TEST_NGINX_REDIS_SOCKET} ||= 'unix://tmp/redis/redis.sock';
 
 no_long_string();
 run_tests();
@@ -26,7 +26,7 @@ __DATA__
 location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new({
-            port = $TEST_REDIS_PORT
+            port = $TEST_NGINX_REDIS_PORT
         })
 
         local redis, err = assert(rc:connect(params),
@@ -57,7 +57,7 @@ location /t {
         local hosts = {
             { host = "127.0.0.1", port = 1 },
             { host = "127.0.0.1", port = 2 },
-            { host = "127.0.0.1", port = $TEST_REDIS_PORT },
+            { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT },
         }
 
         local redis, err, previous_errors = rc:try_hosts(hosts)
@@ -102,7 +102,7 @@ location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new()
 
-        local host = { host = "127.0.0.1", port = $TEST_REDIS_PORT }
+        local host = { host = "127.0.0.1", port = $TEST_NGINX_REDIS_PORT }
 
         local redis, err = rc:connect_to_host(host)
         assert(redis and not err,
@@ -126,7 +126,7 @@ GET /t
 location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new({
-            port = $TEST_REDIS_PORT,
+            port = $TEST_NGINX_REDIS_PORT,
             db = 2,
         })
 
@@ -163,7 +163,7 @@ location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
         local rc = require("resty.redis.connector").new({
-            port = $TEST_REDIS_PORT,
+            port = $TEST_NGINX_REDIS_PORT,
         })
 
         local redis = assert(rc:connect(),
@@ -198,7 +198,7 @@ location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
         local rc = require("resty.redis.connector").new({
-            port = $TEST_REDIS_PORT,
+            port = $TEST_NGINX_REDIS_PORT,
             password = "foo",
         })
 
@@ -267,7 +267,7 @@ location /t {
         local rc = require("resty.redis.connector")
 
         local user_params = {
-            url = "redis://foo@127.0.0.1:$TEST_REDIS_PORT/4"
+            url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4"
         }
 
         local params, err = rc.parse_dsn(user_params)
@@ -275,8 +275,8 @@ location /t {
             "url should parse without error: " .. tostring(err))
 
 		assert(params.host == "127.0.0.1", "host should be localhost")
-		assert(tonumber(params.port) == $TEST_REDIS_PORT,
-			"port should be $TEST_REDIS_PORT")
+		assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT,
+			"port should be $TEST_NGINX_REDIS_PORT")
 		assert(tonumber(params.db) == 4, "db should be 4")
 		assert(params.password == "foo", "password should be foo")
 
@@ -318,7 +318,7 @@ location /t {
         local rc = require("resty.redis.connector")
 
         local user_params = {
-            url = "redis://foo@127.0.0.1:$TEST_REDIS_PORT/4",
+            url = "redis://foo@127.0.0.1:$TEST_NGINX_REDIS_PORT/4",
             db = 2,
             password = "bar",
             host = "example.com",
@@ -332,7 +332,7 @@ location /t {
         assert(params.password == "bar", "password should be bar")
         assert(params.host == "example.com", "host should be example.com")
 
-        assert(tonumber(params.port) == $TEST_REDIS_PORT, "port should still be $TEST_REDIS_PORT")
+        assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT, "port should still be $TEST_NGINX_REDIS_PORT")
 
     }
 }
@@ -349,7 +349,7 @@ location /t {
     lua_socket_log_errors Off;
     content_by_lua_block {
         local user_params = {
-            url = "redis://foo.example:$TEST_REDIS_PORT/4",
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
             db = 2,
             host = "127.0.0.1",
         }
@@ -362,7 +362,7 @@ location /t {
         assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
 
         local redis, err = rc:connect({
-            url = "redis://foo.example:$TEST_REDIS_PORT/4",
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
             db = 2,
             host = "127.0.0.1",
         })
@@ -372,7 +372,7 @@ location /t {
 
         local rc2, err = require("resty.redis.connector").new()
         local redis, err = rc2:connect({
-            url = "redis://foo.example:$TEST_REDIS_PORT/4",
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT/4",
             db = 2,
             host = "127.0.0.1",
         })
