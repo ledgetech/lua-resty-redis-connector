@@ -85,7 +85,6 @@ sleep:
 
 start_redis_instances: check_ports create_sentinel_config
 	$(REDIS_CMD) --version
-	killall $(REDIS_CMD)
 
 	@$(foreach port,$(TEST_REDIS_PORTS), \
 		[[ "$(port)" != "$(REDIS_FIRST_PORT)" ]] && \
