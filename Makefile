@@ -146,6 +146,7 @@ check_ports:
 	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
 test_redis: flush_db
+	cat /var/log/redis/redis.log
 	util/lua-releng
 	@rm -f luacov.stats.out
 	ls -l $(TEST_REDIS_SOCKET)
