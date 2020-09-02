@@ -15,7 +15,7 @@ REDIS_LOG           = /redis.log
 REDIS_PREFIX        = $(TMP_DIR)/redis-
 
 # Overrideable redis test variables
-TEST_REDIS_PORTS              ?= 6379 6380 6378
+TEST_REDIS_PORTS              ?= 6380 6381 6382
 TEST_REDIS_DATABASE           ?= 1
 
 REDIS_FIRST_PORT                    := $(firstword $(TEST_REDIS_PORTS))
@@ -27,7 +27,7 @@ REDIS_CLI                           := redis-cli -p $(REDIS_FIRST_PORT) -n $(TES
 TEST_REDIS_SOCKET             ?= $(REDIS_PREFIX)$(REDIS_FIRST_PORT)$(REDIS_SOCK)
 
 # Overrideable redis + sentinel test variables
-TEST_SENTINEL_PORTS           ?= 6381 6382 6383
+TEST_SENTINEL_PORTS           ?= 6390 6391 6392
 TEST_SENTINEL_MASTER_NAME     ?= mymaster
 TEST_SENTINEL_PROMOTION_TIME  ?= 20
 
@@ -85,6 +85,7 @@ sleep:
 
 start_redis_instances: check_ports create_sentinel_config
 	$(REDIS_CMD) --version
+	killall $(REDIS_CMD)
 
 	@$(foreach port,$(TEST_REDIS_PORTS), \
 		[[ "$(port)" != "$(REDIS_FIRST_PORT)" ]] && \
