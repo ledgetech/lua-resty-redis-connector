@@ -27,12 +27,7 @@ __DATA__
 --- config
 location /t {
     content_by_lua_block {
-        local rc = require("resty.redis.connector").new()
-
-        local redis = assert(rc:connect(), "rc:connect should return postively")
-        assert(redis:set("foo", "bar"), "redis:set should return positvely")
-        assert(redis:get("foo") == "bar", "get(foo) should return bar")
-        redis:close()
+        local rc = assert(require("resty.redis.connector").new())
     }
 }
 --- request
