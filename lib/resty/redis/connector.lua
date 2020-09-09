@@ -157,7 +157,12 @@ local function parse_dsn(params)
         local parsed_params = {}
 
         for i,v in ipairs(fields) do
-            parsed_params[v] = m[i + 1]
+            if v == "db" or v == "port" then
+                parsed_params[v] = tonumber(m[i + 1])
+            else
+                parsed_params[v] = m[i + 1]
+            end
+
             if v == "role" then
                 parsed_params[v] = roles[parsed_params[v]]
             end
@@ -362,6 +367,7 @@ function _M.connect_to_host(self, host)
         -- No support for DBs in proxied Redis.
         if config.connection_is_proxied ~= true and host.db ~= nil then
             local res, err = r:select(host.db)
+
             -- SELECT will fail if we are connected to sentinel:
             -- detect it and ignore error message it that's the case
             if err and str_find(err, "ERR unknown command") then
