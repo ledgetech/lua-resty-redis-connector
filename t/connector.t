@@ -64,10 +64,10 @@ location /t {
         assert(redis and not err,
             "try_hosts should return a connection and no error")
 
-        assert(previous_errors[1] == "connection refused",
-            "previous_errors[1] should be 'connection refused'")
-        assert(previous_errors[2] == "connection refused",
-            "previous_errors[2] should be 'connection refused'")
+        assert(string.len(previous_errors[1]) > 0,
+            "previous_errors[1] should contain an error")
+        assert(string.len(previous_errors[2]) > 0,
+            "previous_errors[2] should contain an error")
 
         assert(redis:set("dog", "an animal"),
             "redis connection should be working")
@@ -83,10 +83,10 @@ location /t {
         assert(not redis and err == "no hosts available",
             "no available hosts should return an error")
 
-        assert(previous_errors[1] == "connection refused",
-            "previous_errors[1] should be 'connection refused'")
-        assert(previous_errors[2] == "connection refused",
-            "previous_errors[2] should be 'connection refused'")
+        assert(string.len(previous_errors[1]) > 0,
+            "previous_errors[1] should contain an error")
+        assert(string.len(previous_errors[2]) > 0,
+            "previous_errors[2] should contain an error")
     }
 }
 --- request
@@ -203,7 +203,7 @@ location /t {
         })
 
         local redis, err = rc:connect()
-        assert(not redis and string.find(err, "ERR Client sent AUTH, but no password is set"),
+        assert(not redis and string.find(err, "ERR") and string.find(err, "AUTH"),
             "connect should fail with password error")
 
     }
@@ -377,6 +377,31 @@ location /t {
         assert(redis and not err, "connect should return positively")
         assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
 
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 10: DSN without DB
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local user_params = {
+            url = "redis://foo.example:$TEST_NGINX_REDIS_PORT",
+            host = "127.0.0.1",
+        }
+
+        local rc, err = require("resty.redis.connector").new(user_params)
+        assert(rc and not err, "new should return positively")
+
+        local redis, err = rc:connect()
+        assert(redis and not err, "connect should return positively")
+        assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
     }
 }
 --- request
