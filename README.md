@@ -81,19 +81,22 @@ If the `params.url` field is present then it will be parsed to set the other par
 
 The format for connecting directly to Redis is:
 
-`redis://PASSWORD@HOST:PORT/DB`
+`redis://USERNAME:PASSWORD@HOST:PORT/DB`
 
-The `PASSWORD` and `DB` fields are optional, all other components are required.
+The `USERNAME`, `PASSWORD` and `DB` fields are optional, all other components are required.
+
+Use of username requires Redis 6.0.0 or newer.
 
 ### Connections via Redis Sentinel
 
 When connecting via Redis Sentinel, the format is as follows:
 
-`sentinel://PASSWORD@MASTER_NAME:ROLE/DB`
+`sentinel://USERNAME:PASSWORD@MASTER_NAME:ROLE/DB`
 
-Again, `PASSWORD` and `DB` are optional. `ROLE` must be either `m` or `s` for master / slave respectively.
+Again, `USERNAME`, `PASSWORD` and `DB` are optional. `ROLE` must be either `m` or `s` for master / slave respectively.
 
 On versions of Redis newer than 5.0.1, Sentinels can optionally require their own password. If enabled, provide this password in the `sentinel_password` parameter.
+On Redis 6.2.0 and newer you can pass username using `sentinel_username` parameter.
 
 A table of `sentinels` must also be supplied. e.g.
 
@@ -103,6 +106,7 @@ local redis, err = rc:connect{
     sentinels = {
         { host = "127.0.0.1", port = 26379 },
     },
+    sentinel_username = "default",
     sentinel_password = "password"
 }
 ```
@@ -137,7 +141,9 @@ If configured as a table of commands, the command methods will be replaced by a 
     host = "127.0.0.1",
     port = "6379",
     path = "",  -- unix socket path, e.g. /tmp/redis.sock
+    username = "",
     password = "",
+    sentinel_username = "",
     sentinel_password = "",
     db = 0,
 

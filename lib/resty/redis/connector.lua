@@ -6,6 +6,7 @@ local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
 
 local str_find = string.find
+local str_sub = string.sub
 local tbl_remove = table.remove
 local tbl_sort = table.sort
 local ok, tbl_new = pcall(require, "table.new")
@@ -95,7 +96,9 @@ local DEFAULTS = setmetatable({
     host = "127.0.0.1",
     port = 6379,
     path = "", -- /tmp/redis.sock
+    username = "",
     password = "",
+    sentinel_username = "",
     sentinel_password = "",
     db = 0,
     url = "", -- DSN url
@@ -149,14 +152,14 @@ local function parse_dsn(params)
             fields = { "password", "master_name", "role", "db" }
         end
 
-        -- password may not be present
+        -- username/password may not be present
         if #m < 5 then tbl_remove(fields, 1) end
 
         local roles = { m = "master", s = "slave" }
 
         local parsed_params = {}
 
-        for i,v in ipairs(fields) do
+        for i, v in ipairs(fields) do
             if v == "db" or v == "port" then
                 parsed_params[v] = tonumber(m[i + 1])
             else
@@ -166,6 +169,12 @@ local function parse_dsn(params)
             if v == "role" then
                 parsed_params[v] = roles[parsed_params[v]]
             end
+        end
+
+        local colon_pos = str_find(parsed_params.password or "", ":", 1, true)
+        if colon_pos then
+            parsed_params.username = str_sub(parsed_params.password, 1, colon_pos - 1)
+            parsed_params.password = str_sub(parsed_params.password, colon_pos + 1)
         end
 
         return tbl_copy_merge_defaults(params, parsed_params)
@@ -233,10 +242,13 @@ function _M.connect_via_sentinel(self, params)
     local master_name = params.master_name
     local role = params.role
     local db = params.db
+    local username = params.username
     local password = params.password
+    local sentinel_username = params.sentinel_username
     local sentinel_password = params.sentinel_password
     if sentinel_password then
-        for _,host in ipairs(sentinels) do
+        for _, host in ipairs(sentinels) do
+            host.username = sentinel_username
             host.password = sentinel_password
         end
     end
@@ -255,6 +267,7 @@ function _M.connect_via_sentinel(self, params)
         sentnl:set_keepalive()
 
         master.db = db
+        master.username = username
         master.password = password
 
         local redis, err = self:connect_to_host(master)
@@ -278,6 +291,7 @@ function _M.connect_via_sentinel(self, params)
         if db or password then
             for _, slave in ipairs(slaves) do
                 slave.db = db
+                slave.username = username
                 slave.password = password
             end
         end
@@ -356,9 +370,16 @@ function _M.connect_to_host(self, host)
     else
         r:set_timeout(config.read_timeout)
 
+        local username = host.username
         local password = host.password
         if password and password ~= "" then
-            local res, err = r:auth(password)
+            local res
+            -- usernames are supported only on Redis 6+, so use new AUTH form only when absolutely necessary
+            if username and username ~= "" and username ~= "default" then
+                res, err = r:auth(username, password)
+            else
+                res, err = r:auth(password)
+            end
             if err then
                 return res, err
             end

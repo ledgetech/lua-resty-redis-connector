@@ -213,8 +213,30 @@ GET /t
 --- no_error_log
 [error]
 
+=== TEST 7: username and password
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    lua_socket_log_errors Off;
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new({
+            port = $TEST_NGINX_REDIS_PORT,
+            username = "x",
+            password = "foo",
+        })
 
-=== TEST 7: Bad unix domain socket path should fail
+        local redis, err = rc:connect()
+        assert(not redis and string.find(err, "WRONGPASS"),
+            "connect should fail with invalid username-password error")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 8: Bad unix domain socket path should fail
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -234,7 +256,7 @@ GET /t
 [error]
 
 
-=== TEST 7.1: Good unix domain socket path should succeed
+=== TEST 8.1: Good unix domain socket path should succeed
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -256,7 +278,7 @@ GET /t
 [error]
 
 
-=== TEST 8: parse_dsn
+=== TEST 9: parse_dsn
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -280,7 +302,7 @@ location /t {
 
 
 		local user_params = {
-			url = "sentinel://foo@foomaster:s/2"
+			url = "sentinel://foo:bar@foomaster:s/2"
 		}
 
 		local params, err = rc.parse_dsn(user_params)
@@ -290,6 +312,8 @@ location /t {
 		assert(params.master_name == "foomaster", "master_name should be foomaster")
 		assert(params.role == "slave", "role should be slave")
 		assert(tonumber(params.db) == 2, "db should be 2")
+		assert(params.username == "foo", "username should be foo")
+		assert(params.password == "bar", "password should be bar")
 
 
 		local params = {
@@ -307,7 +331,7 @@ GET /t
 [error]
 
 
-=== TEST 9: params override dsn components
+=== TEST 10: params override dsn components
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -340,7 +364,7 @@ GET /t
 [error]
 
 
-=== TEST 9: Integration test for parse_dsn
+=== TEST 11: Integration test for parse_dsn
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -385,7 +409,7 @@ GET /t
 [error]
 
 
-=== TEST 10: DSN without DB
+=== TEST 12: DSN without DB
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
