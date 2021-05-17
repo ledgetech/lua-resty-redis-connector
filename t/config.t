@@ -120,6 +120,7 @@ location /t {
             host = "127.0.0.1",
             port = $TEST_NGINX_REDIS_PORT,
             path = "",
+            username = "",
             password = "",
             db = 0,
 
@@ -144,6 +145,7 @@ location /t {
             host = "127.0.0.1",
             port = $TEST_NGINX_REDIS_PORT,
             path = "",
+            username = "",
             password = "",
             db = 0,
 

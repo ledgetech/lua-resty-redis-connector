@@ -4,7 +4,6 @@ OPENRESTY_PREFIX    = /usr/local/openresty
 
 TEST_FILE          ?= t
 TMP_DIR			   ?= /tmp
-SENTINEL_TEST_FILE ?= $(TEST_FILE)/sentinel
 
 REDIS_CMD           = redis-server
 SENTINEL_CMD        = $(REDIS_CMD) --sentinel
