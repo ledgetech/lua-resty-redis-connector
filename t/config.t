@@ -15,7 +15,7 @@ init_by_lua_block {
 }
 };
 
-$ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
+$ENV{TEST_NGINX_REDIS_PORT} ||= 6380;
 
 no_long_string();
 run_tests();
