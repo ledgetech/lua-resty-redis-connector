@@ -1,5 +1,5 @@
 sudo: required
-dist: trusty
+dist: focal
 
 os: linux
 
@@ -9,9 +9,10 @@ compiler: gcc
 
 addons:
   apt:
+    sources:
+      - sourceline: 'ppa:redislabs/redis'
     packages:
       - luarocks
-      - redis
       - lsof
 
 cache:
@@ -37,6 +38,10 @@ env:
     - NGINX_VERSION=1.17.8
 
 before_install:
+  # we can't update redis in addons.apt.packages as updated package automatically tries to start and immediately fails
+  - echo exit 101 | sudo tee /usr/sbin/policy-rc.d
+  - sudo chmod +x /usr/sbin/policy-rc.d
+  - sudo apt-get install -y redis-server
   - sudo luarocks install luacov
   - sudo luarocks install lua-resty-redis
   - sudo luarocks install luacheck $LUACHECK_VER
