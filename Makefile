@@ -17,7 +17,9 @@ REDIS_PREFIX        = $(TMP_DIR)/redis-
 TEST_REDIS_PORT              ?= 6380
 TEST_REDIS_PORT_SL1          ?= 6381
 TEST_REDIS_PORT_SL2          ?= 6382
+TEST_REDIS_PORT_AUTH         ?= 6383
 TEST_REDIS_PORTS             ?= $(TEST_REDIS_PORT) $(TEST_REDIS_PORT_SL1) $(TEST_REDIS_PORT_SL2)
+TEST_REDIS_PORTS_ALL         ?= $(TEST_REDIS_PORTS) $(TEST_REDIS_PORT_AUTH)
 TEST_REDIS_DATABASE          ?= 1
 TEST_REDIS_SOCKET            ?= $(REDIS_PREFIX)$(TEST_REDIS_PORT)$(REDIS_SOCK)
 
@@ -28,7 +30,9 @@ REDIS_CLI                           := redis-cli -p $(TEST_REDIS_PORT) -n $(TEST
 TEST_SENTINEL_PORT1           ?= 6390
 TEST_SENTINEL_PORT2           ?= 6391
 TEST_SENTINEL_PORT3           ?= 6392
+TEST_SENTINEL_PORT_AUTH       ?= 6393
 TEST_SENTINEL_PORTS           ?= $(TEST_SENTINEL_PORT1) $(TEST_SENTINEL_PORT2) $(TEST_SENTINEL_PORT3)
+TEST_SENTINEL_PORTS_ALL       ?= $(TEST_SENTINEL_PORTS) $(TEST_SENTINEL_PORT_AUTH)
 TEST_SENTINEL_MASTER_NAME     ?= mymaster
 TEST_SENTINEL_PROMOTION_TIME  ?= 20
 
@@ -37,6 +41,7 @@ TEST_REDIS_VARS     = PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$(PATH) \
 TEST_NGINX_REDIS_PORT=$(TEST_REDIS_PORT) \
 TEST_NGINX_REDIS_PORT_SL1=$(TEST_REDIS_PORT_SL1) \
 TEST_NGINX_REDIS_PORT_SL2=$(TEST_REDIS_PORT_SL2) \
+TEST_NGINX_REDIS_PORT_AUTH=$(TEST_REDIS_PORT_AUTH) \
 TEST_NGINX_REDIS_SOCKET=unix:$(TEST_REDIS_SOCKET) \
 TEST_NGINX_REDIS_DATABASE=$(TEST_REDIS_DATABASE) \
 TEST_NGINX_NO_SHUFFLE=1
@@ -49,6 +54,7 @@ TEST_NGINX_REDIS_PORT_SL2=$(TEST_NGINX_REDIS_PORT_SL2) \
 TEST_NGINX_SENTINEL_PORT1=$(TEST_NGINX_SENTINEL_PORT1) \
 TEST_NGINX_SENTINEL_PORT2=$(TEST_NGINX_SENTINEL_PORT2) \
 TEST_NGINX_SENTINEL_PORT3=$(TEST_NGINX_SENTINEL_PORT3) \
+TEST_NGINX_SENTINEL_PORT_AUTH=$(TEST_NGINX_SENTINEL_AUTH) \
 TEST_NGINX_SENTINEL_MASTER_NAME=$(TEST_NGINX_SENTINEL_MASTER_NAME) \
 TEST_NGINX_REDIS_DATABASE=$(TEST_NGINX_REDIS_DATABASE) \
 TEST_NGINX_NO_SHUFFLE=1
@@ -60,10 +66,14 @@ sentinel       down-after-milliseconds $(TEST_SENTINEL_MASTER_NAME) 2000
 sentinel       failover-timeout $(TEST_SENTINEL_MASTER_NAME) 10000
 sentinel       parallel-syncs $(TEST_SENTINEL_MASTER_NAME) 5
 endef
+define TEST_SENTINEL_AUTH_CONFIG
+sentinel       monitor $(TEST_SENTINEL_MASTER_NAME) 127.0.0.1 $(TEST_REDIS_PORT_AUTH) 1
+endef
 
-export TEST_SENTINEL_CONFIG
+export TEST_SENTINEL_CONFIG TEST_SENTINEL_AUTH_CONFIG
 
 SENTINEL_CONFIG_FILE = /tmp/sentinel-test-config
+SENTINEL_AUTH_CONFIG_FILE = /tmp/sentinel-auth-test-config
 
 
 PREFIX          ?= /usr/local
@@ -103,14 +113,24 @@ start_redis_instances: check_ports create_sentinel_config
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true
 
+	$(MAKE) start_redis_instance \
+		args="--user redisuser on '>redisuserpass' '~*' '&*' '+@all'" \
+		port=$(TEST_REDIS_PORT_AUTH) \
+		prefix=$(REDIS_PREFIX)$(TEST_REDIS_PORT_AUTH)
+
 	@$(foreach port,$(TEST_SENTINEL_PORTS), \
 		$(MAKE) start_redis_instance \
 		port=$(port) args="$(SENTINEL_CONFIG_FILE) --sentinel" \
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true
 
+	$(MAKE) start_redis_instance \
+		args="$(SENTINEL_AUTH_CONFIG_FILE) --sentinel --user sentineluser on '>sentineluserpass' '~*' '&*' '+@all'" \
+		port=$(TEST_SENTINEL_PORT_AUTH) \
+		prefix=$(REDIS_PREFIX)$(TEST_SENTINEL_PORT_AUTH)
+
 stop_redis_instances: delete_sentinel_config
-	-@$(foreach port,$(TEST_REDIS_PORTS) $(TEST_SENTINEL_PORTS), \
+	-@$(foreach port,$(TEST_REDIS_PORTS_ALL) $(TEST_SENTINEL_PORTS_ALL), \
 		$(MAKE) stop_redis_instance cleanup_redis_instance port=$(port) \
 		prefix=$(REDIS_PREFIX)$(port) && \
 	) true 2>&1 > /dev/null
@@ -145,14 +165,18 @@ flush_db:
 create_sentinel_config:
 	-@echo "Creating $(SENTINEL_CONFIG_FILE)"
 	@echo "$$TEST_SENTINEL_CONFIG" > $(SENTINEL_CONFIG_FILE)
+	-@echo "Creating $(SENTINEL_AUTH_CONFIG_FILE)"
+	@echo "$$TEST_SENTINEL_AUTH_CONFIG" > $(SENTINEL_AUTH_CONFIG_FILE)
 
 delete_sentinel_config:
 	-@echo "Removing $(SENTINEL_CONFIG_FILE)"
 	@rm -f $(SENTINEL_CONFIG_FILE)
+	-@echo "Removing $(SENTINEL_AUTH_CONFIG_FILE)"
+	@rm -f $(SENTINEL_AUTH_CONFIG_FILE)
 
 check_ports:
-	-@echo "Checking ports $(REDIS_PORTS)"
-	@$(foreach port,$(REDIS_PORTS),! lsof -i :$(port) &&) true 2>&1 > /dev/null
+	-@echo "Checking ports $(TEST_REDIS_PORTS_ALL) $(TEST_SENTINEL_PORTS_ALL)"
+	@$(foreach port,$(TEST_REDIS_PORTS_ALL) $(TEST_SENTINEL_PORTS_ALL),! lsof -i :$(port) &&) true 2>&1 > /dev/null
 
 test_redis: flush_db
 	util/lua-releng

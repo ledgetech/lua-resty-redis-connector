@@ -18,6 +18,7 @@ $ENV{TEST_NGINX_REDIS_PORT_SL2} ||= 6382;
 $ENV{TEST_NGINX_SENTINEL_PORT1} ||= 6390;
 $ENV{TEST_NGINX_SENTINEL_PORT2} ||= 6391;
 $ENV{TEST_NGINX_SENTINEL_PORT3} ||= 6392;
+$ENV{TEST_NGINX_SENTINEL_PORT_AUTH} ||= 6393;
 
 no_long_string();
 run_tests();
@@ -239,6 +240,32 @@ location /t {
 
         local redis, err = rc:connect_via_sentinel(params)
         assert(redis and not err, "redis should connect without error")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+=== TEST 6: connect with acl
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+        local redis, err = rc:connect({
+            username = "redisuser",
+            password = "redisuserpass",
+            sentinels = {
+                { host = "127.0.0.1", port = $TEST_NGINX_SENTINEL_PORT_AUTH }
+            },
+            master_name = "mymaster",
+            sentinel_username = "sentineluser",
+            sentinel_username = "sentineluserpass",
+        })
+        assert(redis and not err, "redis should connect without error")
+        local username = assert(redis:acl("whoami"))
+        assert(username == "redisuser", "should connect as 'redisuser' but got " .. tostring(username))
     }
 }
 --- request

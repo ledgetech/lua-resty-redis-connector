@@ -12,7 +12,8 @@ init_by_lua_block {
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
-$ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
+$ENV{TEST_NGINX_REDIS_PORT} ||= 6380;
+$ENV{TEST_NGINX_REDIS_PORT_AUTH} ||= 6393;
 $ENV{TEST_NGINX_REDIS_SOCKET} ||= 'unix://tmp/redis/redis.sock';
 
 no_long_string();
@@ -401,6 +402,12 @@ location /t {
         assert(redis and not err, "connect should return positively")
         assert(redis:set("cat", "dog") and redis:get("cat") == "dog")
 
+        local redis, err = rc2:connect({
+            url = "redis://redisuser:redisuserpass@127.0.0.1:$TEST_NGINX_REDIS_PORT_AUTH/"
+        })
+        assert(redis and not err, "connect should return positively")
+        local username = assert(redis:acl("whoami"))
+        assert(username == "redisuser", "should connect as 'redisuser' but got " .. tostring(username))
     }
 }
 --- request
