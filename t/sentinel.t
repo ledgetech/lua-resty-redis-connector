@@ -31,19 +31,21 @@ __DATA__
 location /t {
 	content_by_lua_block {
 		local rc = require("resty.redis.connector").new()
+        local rs = require("resty.redis.sentinel")
 
 		local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
 		assert(sentinel and not err, "sentinel should connect without errors but got " .. tostring(err))
 
-		local master, err = require("resty.redis.sentinel").get_master(
-			sentinel,
-			"mymaster"
-		)
+		local master, err = rs.get_master(sentinel, "mymaster")
 
 		assert(master and not err, "get_master should return the master")
 
 		assert(master.host == "127.0.0.1" and tonumber(master.port) == $TEST_NGINX_REDIS_PORT,
 			"host should be 127.0.0.1 and port should be $TEST_NGINX_REDIS_PORT")
+
+        master, err = rs.get_master(sentinel, "invalid-mymaster")
+
+        assert(not master and err, "invalid master name should result in error")
 
 		sentinel:close()
 	}
@@ -87,14 +89,12 @@ GET /t
 location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new()
+        local rs = require("resty.redis.sentinel")
 
         local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
         assert(sentinel and not err, "sentinel should connect without error")
 
-        local slaves, err = require("resty.redis.sentinel").get_slaves(
-            sentinel,
-            "mymaster"
-        )
+        local slaves, err = rs.get_slaves(sentinel, "mymaster")
 
         assert(slaves and not err, "slaves should be returned without error")
 
@@ -106,6 +106,10 @@ location /t {
 
 		assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == true and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
 			"slaves should both be found")
+
+        slaves, err = rs.get_slaves(sentinel, "invalid-mymaster")
+
+        assert(not slaves and err, "invalid master name should result in error")
 
         sentinel:close()
     }
