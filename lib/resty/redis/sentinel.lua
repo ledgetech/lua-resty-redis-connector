@@ -21,6 +21,8 @@ function _M.get_master(sentinel, master_name)
     )
     if res and res ~= ngx_null and res[1] and res[2] then
         return { host = res[1], port = res[2] }
+    elseif res == ngx_null then
+        return nil, "invalid master name"
     else
         return nil, err
     end
