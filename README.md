@@ -24,6 +24,7 @@ More verbose configuration, with timeouts and a default password:
 ```lua
 local rc = require("resty.redis.connector").new({
     connect_timeout = 50,
+    send_timeout = 5000,
     read_timeout = 5000,
     keepalive_timeout = 30000,
     password = "mypass",
@@ -43,6 +44,7 @@ Keep all config in a table, to easily create / close connections as needed:
 ```lua
 local rc = require("resty.redis.connector").new({
     connect_timeout = 50,
+    send_timeout = 5000,
     read_timeout = 5000,
     keepalive_timeout = 30000,
 
@@ -149,10 +151,14 @@ the server
 ```lua
 {
     connect_timeout = 100,
+    send_timeout = 1000,
     read_timeout = 1000,
-    connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
+
+    -- ssl, ssl_verify, server_name, pool, pool_size, backlog
+    -- see: https://github.com/openresty/lua-resty-redis#connect
+    connection_options = {},
 
     host = "127.0.0.1",
     port = "6379",
