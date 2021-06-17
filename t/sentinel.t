@@ -29,26 +29,26 @@ __DATA__
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
-	content_by_lua_block {
-		local rc = require("resty.redis.connector").new()
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
         local rs = require("resty.redis.sentinel")
 
-		local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
-		assert(sentinel and not err, "sentinel should connect without errors but got " .. tostring(err))
+        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
+        assert(sentinel and not err, "sentinel should connect without errors but got " .. tostring(err))
 
-		local master, err = rs.get_master(sentinel, "mymaster")
+        local master, err = rs.get_master(sentinel, "mymaster")
 
-		assert(master and not err, "get_master should return the master")
+        assert(master and not err, "get_master should return the master")
 
-		assert(master.host == "127.0.0.1" and tonumber(master.port) == $TEST_NGINX_REDIS_PORT,
-			"host should be 127.0.0.1 and port should be $TEST_NGINX_REDIS_PORT")
+        assert(master.host == "127.0.0.1" and tonumber(master.port) == $TEST_NGINX_REDIS_PORT,
+            "host should be 127.0.0.1 and port should be $TEST_NGINX_REDIS_PORT")
 
         master, err = rs.get_master(sentinel, "invalid-mymaster")
 
         assert(not master and err, "invalid master name should result in error")
 
-		sentinel:close()
-	}
+        sentinel:close()
+    }
 }
 --- request
 GET /t
@@ -60,22 +60,22 @@ GET /t
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
-	content_by_lua_block {
-		local rc = require("resty.redis.connector").new()
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
 
-		local master, err = rc:connect({
+        local master, err = rc:connect({
             url = "sentinel://mymaster:m/3",
             sentinels = {
                 { host = "127.0.0.1", port = $TEST_NGINX_SENTINEL_PORT1 }
             }
         })
 
-		assert(master and not err, "get_master should return the master")
+        assert(master and not err, "get_master should return the master")
         assert(master:set("foo", "bar"), "set should run without error")
         assert(master:get("foo") == "bar", "get(foo) should return bar")
 
-	    master:close()
-	}
+        master:close()
+    }
 }
 --- request
 GET /t
@@ -98,14 +98,14 @@ location /t {
 
         assert(slaves and not err, "slaves should be returned without error")
 
-		local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
+        local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
 
-		for _,slave in ipairs(slaves) do
-			slaveports[tostring(slave.port)] = true
-		end
+        for _,slave in ipairs(slaves) do
+            slaveports[tostring(slave.port)] = true
+        end
 
-		assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == true and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
-			"slaves should both be found")
+        assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == true and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
+            "slaves should both be found")
 
         slaves, err = rs.get_slaves(sentinel, "invalid-mymaster")
 
@@ -128,47 +128,47 @@ location /t {
         local rc = require("resty.redis.connector").new()
 
         local sentinel, err = rc:connect({ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" })
-		assert(sentinel and not err, "sentinel should connect without error")
+        assert(sentinel and not err, "sentinel should connect without error")
 
         local slaves, err = require("resty.redis.sentinel").get_slaves(
-			sentinel,
-			"mymaster"
-		)
+            sentinel,
+            "mymaster"
+        )
 
-		assert(slaves and not err, "slaves should be returned without error")
+        assert(slaves and not err, "slaves should be returned without error")
 
-		local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
+        local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
 
-		for _,slave in ipairs(slaves) do
-			slaveports[tostring(slave.port)] = true
-		end
+        for _,slave in ipairs(slaves) do
+            slaveports[tostring(slave.port)] = true
+        end
 
-		assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == true and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
-			"slaves should both be found")
+        assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == true and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
+            "slaves should both be found")
 
-		-- connect to one and remove it
-		local r = require("resty.redis.connector").new():connect({
-			port = $TEST_NGINX_REDIS_PORT_SL1,
-		})
+        -- connect to one and remove it
+        local r = require("resty.redis.connector").new():connect({
+            port = $TEST_NGINX_REDIS_PORT_SL1,
+        })
         r:slaveof("127.0.0.1", 7000)
 
         ngx.sleep(9)
 
         local slaves, err = require("resty.redis.sentinel").get_slaves(
-			sentinel,
-			"mymaster"
-		)
+            sentinel,
+            "mymaster"
+        )
 
-		assert(slaves and not err, "slaves should be returned without error")
+        assert(slaves and not err, "slaves should be returned without error")
 
-		local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
+        local slaveports = { ["$TEST_NGINX_REDIS_PORT_SL1"] = false, ["$TEST_NGINX_REDIS_PORT_SL2"] = false }
 
-		for _,slave in ipairs(slaves) do
-			slaveports[tostring(slave.port)] = true
-		end
+        for _,slave in ipairs(slaves) do
+            slaveports[tostring(slave.port)] = true
+        end
 
-		assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == false and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
-			"only $TEST_NGINX_REDIS_PORT_SL2 should be found")
+        assert(slaveports["$TEST_NGINX_REDIS_PORT_SL1"] == false and slaveports["$TEST_NGINX_REDIS_PORT_SL2"] == true,
+            "only $TEST_NGINX_REDIS_PORT_SL2 should be found")
 
         r:slaveof("127.0.0.1", $TEST_NGINX_REDIS_PORT)
 
