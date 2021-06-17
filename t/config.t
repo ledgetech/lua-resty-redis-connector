@@ -112,6 +112,7 @@ location /t {
 
         assert(require("resty.redis.connector").new({
             connect_timeout = 100,
+            send_timeout = 500,
             read_timeout = 1000,
             connection_options = { pool = "<host>::<port>" },
             keepalive_timeout = 60000,
@@ -137,6 +138,7 @@ location /t {
 
         assert(rc:connect({
             connect_timeout = 100,
+            send_timeout = 500,
             read_timeout = 1000,
             connection_options = { pool = "<host>::<port>" },
             keepalive_timeout = 60000,
@@ -155,6 +157,62 @@ location /t {
             role = "master",
             sentinels = {},
         }), "rc:connect should return positively")
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 5: timeout defaults
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        -- global defaults
+        local rc = require("resty.redis.connector").new({
+            port = $TEST_NGINX_REDIS_PORT,
+            db = 6,
+            keepalive_poolsize = 10,
+        })
+
+        assert(rc.config.connect_timeout == 100, "connect_timeout should be 100")
+        assert(rc.config.send_timeout == 1000, "send_timeout should be 1000")
+        assert(rc.config.read_timeout == 1000, "read_timeout should be 1000")
+
+        local redis = assert(rc:connect(), "rc:connect should return positively")
+        assert(redis:set("foo", "bar"))
+        rc:set_keepalive(redis)
+
+        -- send_timeout defaults to read_timeout
+        rc = require("resty.redis.connector").new({
+            read_timeout = 500,
+            port = $TEST_NGINX_REDIS_PORT,
+            db = 6,
+            keepalive_poolsize = 10,
+        })
+
+        assert(rc.config.connect_timeout == 100, "connect_timeout should be 100")
+        assert(rc.config.send_timeout == 500, "send_timeout should be 500")
+        assert(rc.config.read_timeout == 500, "read_timeout should be 500")
+
+        local redis = assert(rc:connect(), "rc:connect should return positively")
+        assert(redis:set("foo", "bar"))
+        rc:set_keepalive(redis)
+
+        -- send_timeout can be set separately from read_timeout
+        rc = require("resty.redis.connector").new({
+            send_timeout = 500,
+            read_timeout = 200,
+            port = $TEST_NGINX_REDIS_PORT,
+            db = 6,
+            keepalive_poolsize = 10,
+        })
+
+        assert(rc.config.connect_timeout == 100, "connect_timeout should be 100")
+        assert(rc.config.send_timeout == 500, "send_timeout should be 500")
+        assert(rc.config.read_timeout == 200, "read_timeout should be 200")
     }
 }
 --- request
