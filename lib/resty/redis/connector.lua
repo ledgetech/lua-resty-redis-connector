@@ -193,6 +193,7 @@ local function apply_dsn(config)
         config, err = parse_dsn(config)
         if err then ngx_log(ngx_ERR, err) end
     end
+    return config
 end
 
 
@@ -207,7 +208,7 @@ end
 
 
 function _M.new(config)
-    apply_dsn(config)
+    config = apply_dsn(config)
     apply_fallback_send_timeout(config)
 
     local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
@@ -229,7 +230,7 @@ end
 
 
 function _M.connect(self, params)
-    apply_dsn(params)
+    params = apply_dsn(params)
     apply_fallback_send_timeout(params)
 
     params = tbl_copy_merge_defaults(params, self.config)
