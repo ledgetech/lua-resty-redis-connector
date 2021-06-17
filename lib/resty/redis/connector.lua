@@ -201,7 +201,7 @@ end
 -- same as read_timeout. So if only the latter is given, ensure the former
 -- matches.
 local function apply_fallback_send_timeout(config)
-    if not config.send_timeout and config.read_timeout then
+    if config and not config.send_timeout and config.read_timeout then
         config.send_timeout = config.read_timeout
     end
 end
