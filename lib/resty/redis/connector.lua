@@ -89,6 +89,7 @@ end
 local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
+    send_timeout = 1000,
     connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
@@ -220,6 +221,13 @@ function _M.connect(self, params)
 
     params = tbl_copy_merge_defaults(params, self.config)
 
+    -- For backwards compatability; previously send_timeout was implicitly the
+    -- same as read_timeout. So if only the latter is given, ensure the former
+    -- matches.
+    if not params.send_timeout and params.read_timeout then
+        params.send_timeout = params.read_timeout
+    end
+
     if #params.sentinels > 0 then
         return self:connect_via_sentinel(params)
     else
@@ -337,7 +345,11 @@ function _M.connect_to_host(self, host)
         end
     end
 
-    r:set_timeout(config.connect_timeout)
+    r:set_timeouts(
+        config.connect_timeout,
+        config.send_timeout,
+        config.read_timeout
+    )
 
     -- Stub out methods for disabled commands
     if next(config.disabled_commands) then
@@ -368,8 +380,6 @@ function _M.connect_to_host(self, host)
     if not ok then
         return nil, err
     else
-        r:set_timeout(config.read_timeout)
-
         local username = host.username
         local password = host.password
         if password and password ~= "" then
