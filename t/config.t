@@ -79,8 +79,15 @@ location /t {
         assert(rc.config.keepalive_poolsize == 10,
             "keepalive_poolsize should be 10")
 
-        local redis = assert(rc:connect({ port = $TEST_NGINX_REDIS_PORT, disabled_commands = {"set"} }),
-            "rc:connect should return positively")
+        local redis, err = rc:connect({
+            port = $TEST_NGINX_REDIS_PORT,
+            disabled_commands = { "set" }
+        })
+
+        if not redis then
+            ngx.log(ngx.ERR, "connect failed: ", err)
+            return
+        end
 
         local ok, err = redis:set("foo", "bar")
             assert( ok == nil and (string.find(err, "disabled") ~= nil) , "Disabled commands not passed through" )
