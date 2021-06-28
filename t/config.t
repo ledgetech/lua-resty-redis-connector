@@ -9,8 +9,7 @@ my $pwd = cwd();
 
 our $HttpConfig = qq{
 lua_package_path "$pwd/lib/?.lua;;";
-
-lua_socket_log_errors On;
+lua_socket_log_errors Off;
 
 init_by_lua_block {
     require("luacov.runner").init()
