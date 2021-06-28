@@ -10,6 +10,8 @@ my $pwd = cwd();
 our $HttpConfig = qq{
 lua_package_path "$pwd/lib/?.lua;;";
 
+lua_socket_log_errors On;
+
 init_by_lua_block {
     require("luacov.runner").init()
 }
@@ -84,7 +86,7 @@ location /t {
             disabled_commands = { "set" }
         })
 
-        if not redis then
+        if not redis or err then
             ngx.log(ngx.ERR, "connect failed: ", err)
             return
         end
