@@ -35,7 +35,7 @@ env:
     - TEST_NGINX_SLEEP=0.006
     - LUACHECK_VER=0.21.1
   jobs:
-    - NGINX_VERSION=1.19.3
+    - NGINX_VERSION=1.19.9
 
 before_install:
   # we can't update redis in addons.apt.packages as updated package automatically tries to start and immediately fails
