@@ -10,7 +10,7 @@ end
 
 
 local _M = {
-    _VERSION = '0.09'
+    _VERSION = '0.11.0'
 }
 
 
