@@ -1,8 +1,12 @@
 # lua-resty-redis-connector
 
-[![Build Status](https://travis-ci.org/ledgetech/lua-resty-redis-connector.svg?branch=master)](https://travis-ci.org/ledgetech/lua-resty-redis-connector)
+[![Build
+Status](https://travis-ci.org/ledgetech/lua-resty-redis-connector.svg?branch=master)](https://travis-ci.org/ledgetech/lua-resty-redis-connector)
 
-Connection utilities for [lua-resty-redis](https://github.com/openresty/lua-resty-redis), making it easy and reliable to connect to Redis hosts, either directly or via [Redis Sentinel](http://redis.io/topics/sentinel).
+Connection utilities for
+[lua-resty-redis](https://github.com/openresty/lua-resty-redis), making it easy
+and reliable to connect to Redis hosts, either directly or via [Redis
+Sentinel](http://redis.io/topics/sentinel).
 
 
 ## Synopsis
@@ -20,6 +24,7 @@ More verbose configuration, with timeouts and a default password:
 ```lua
 local rc = require("resty.redis.connector").new({
     connect_timeout = 50,
+    send_timeout = 5000,
     read_timeout = 5000,
     keepalive_timeout = 30000,
     password = "mypass",
@@ -39,6 +44,7 @@ Keep all config in a table, to easily create / close connections as needed:
 ```lua
 local rc = require("resty.redis.connector").new({
     connect_timeout = 50,
+    send_timeout = 5000,
     read_timeout = 5000,
     keepalive_timeout = 30000,
 
@@ -55,7 +61,8 @@ local redis, err = rc:connect()
 local ok, err = rc:set_keepalive(redis)
 ```
 
-[connect](#connect) can be used to override some defaults given in [new](#new), which are pertinent to this connection only.
+[connect](#connect) can be used to override some defaults given in [new](#new),
+which are pertinent to this connection only.
 
 
 ```lua
@@ -73,9 +80,11 @@ local redis, err = rc:connect({
 
 ## DSN format
 
-If the `params.url` field is present then it will be parsed to set the other params. Any manually specified params will override values given in the DSN.
+If the `params.url` field is present then it will be parsed to set the other
+params. Any manually specified params will override values given in the DSN.
 
-*Note: this is a behaviour change as of v0.06. Previously, the DSN values would take precedence.*
+*Note: this is a behaviour change as of v0.06. Previously, the DSN values would
+take precedence.*
 
 ### Direct Redis connections
 
@@ -83,7 +92,8 @@ The format for connecting directly to Redis is:
 
 `redis://USERNAME:PASSWORD@HOST:PORT/DB`
 
-The `USERNAME`, `PASSWORD` and `DB` fields are optional, all other components are required.
+The `USERNAME`, `PASSWORD` and `DB` fields are optional, all other components
+are required.
 
 Use of username requires Redis 6.0.0 or newer.
 
@@ -93,10 +103,13 @@ When connecting via Redis Sentinel, the format is as follows:
 
 `sentinel://USERNAME:PASSWORD@MASTER_NAME:ROLE/DB`
 
-Again, `USERNAME`, `PASSWORD` and `DB` are optional. `ROLE` must be either `m` or `s` for master / slave respectively.
+Again, `USERNAME`, `PASSWORD` and `DB` are optional. `ROLE` must be either `m`
+or `s` for master / slave respectively.
 
-On versions of Redis newer than 5.0.1, Sentinels can optionally require their own password. If enabled, provide this password in the `sentinel_password` parameter.
-On Redis 6.2.0 and newer you can pass username using `sentinel_username` parameter.
+On versions of Redis newer than 5.0.1, Sentinels can optionally require their
+own password. If enabled, provide this password in the `sentinel_password`
+parameter. On Redis 6.2.0 and newer you can pass username using
+`sentinel_username` parameter.
 
 A table of `sentinels` must also be supplied. e.g.
 
@@ -113,19 +126,24 @@ local redis, err = rc:connect{
 
 ## Proxy Mode
 
-Enable the `connection_is_proxied` parameter if connecting to Redis through a proxy service (e.g. Twemproxy).
-These proxies generally only support a limited sub-set of Redis commands, those which do not require state and do not affect multiple keys.
-Databases and transactions are also not supported.
+Enable the `connection_is_proxied` parameter if connecting to Redis through a
+proxy service (e.g. Twemproxy). These proxies generally only support a limited
+sub-set of Redis commands, those which do not require state and do not affect
+multiple keys. Databases and transactions are also not supported.
 
-Proxy mode will disable switching to a DB on connect.
-Unsupported commands (defaults to those not supported by Twemproxy) will return `nil, err` immediately rather than being sent to the proxy, which can result in dropped connections.
+Proxy mode will disable switching to a DB on connect. Unsupported commands
+(defaults to those not supported by Twemproxy) will return `nil, err`
+immediately rather than being sent to the proxy, which can result in dropped
+connections.
 
 `discard` will not be sent when adding connections to the keepalive pool
 
 
 ## Disabled commands
 
-If configured as a table of commands, the command methods will be replaced by a function which immediately returns `nil, err` without forwarding the command to the server
+If configured as a table of commands, the command methods will be replaced by a
+function which immediately returns `nil, err` without forwarding the command to
+the server
 
 ## Default Parameters
 
@@ -133,10 +151,14 @@ If configured as a table of commands, the command methods will be replaced by a 
 ```lua
 {
     connect_timeout = 100,
+    send_timeout = 1000,
     read_timeout = 1000,
-    connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
+
+    -- ssl, ssl_verify, server_name, pool, pool_size, backlog
+    -- see: https://github.com/openresty/lua-resty-redis#connect
+    connection_options = {},
 
     host = "127.0.0.1",
     port = "6379",
@@ -175,16 +197,21 @@ If configured as a table of commands, the command methods will be replaced by a 
 
 `syntax: rc = redis_connector.new(params)`
 
-Creates the Redis Connector object, overring default params with the ones given. In case of failures, returns `nil` and a string describing the error.
+Creates the Redis Connector object, overring default params with the ones given.
+In case of failures, returns `nil` and a string describing the error.
 
 
 ### connect
 
 `syntax: redis, err = rc:connect(params)`
 
-Attempts to create a connection, according to the [params](#parameters) supplied, falling back to defaults given in `new` or the predefined defaults. If a connection cannot be made, returns `nil` and a string describing the reason.
+Attempts to create a connection, according to the [params](#parameters)
+supplied, falling back to defaults given in `new` or the predefined defaults. If
+a connection cannot be made, returns `nil` and a string describing the reason.
 
-Note that `params` given here do not change the connector's own configuration, and are only used to alter this particular connection operation. As such, the following parameters have no meaning when given in `connect`.
+Note that `params` given here do not change the connector's own configuration,
+and are only used to alter this particular connection operation. As such, the
+following parameters have no meaning when given in `connect`.
 
 * `keepalive_poolsize`
 * `keepalive_timeout`
@@ -196,24 +223,28 @@ Note that `params` given here do not change the connector's own configuration, a
 
 `syntax: ok, err = rc:set_keepalive(redis)`
 
-Attempts to place the given Redis connection on the keepalive pool, according to timeout and poolsize params given in `new` or the predefined defaults.
+Attempts to place the given Redis connection on the keepalive pool, according to
+timeout and poolsize params given in `new` or the predefined defaults.
 
-This allows an application to release resources without having to keep track of application wide keepalive settings.
+This allows an application to release resources without having to keep track of
+application wide keepalive settings.
 
 Returns `1` or in the case of error, `nil` and a string describing the error.
 
 
 ## Utilities
 
-The following methods are not typically needed, but may be useful if a custom interface is required.
+The following methods are not typically needed, but may be useful if a custom
+interface is required.
 
 
 ### connect_via_sentinel
 
 `syntax: redis, err = rc:connect_via_sentinel(params)`
 
-Returns a Redis connection by first accessing a sentinel as supplied by the `params.sentinels` table,
-and querying this with the `params.master_name` and `params.role`.
+Returns a Redis connection by first accessing a sentinel as supplied by the
+`params.sentinels` table, and querying this with the `params.master_name` and
+`params.role`.
 
 
 ### try_hosts
@@ -234,14 +265,16 @@ Attempts to connect to the supplied `host`.
 
 `syntax: master, err = sentinel.get_master(sentinel, master_name)`
 
-Given a connected Sentinel instance and a master name, will return the current master Redis instance.
+Given a connected Sentinel instance and a master name, will return the current
+master Redis instance.
 
 
 ### sentinel.get_slaves
 
 `syntax: slaves, err = sentinel.get_slaves(sentinel, master_name)`
 
-Given a connected Sentinel instance and a master name, will return a list of registered slave Redis instances.
+Given a connected Sentinel instance and a master name, will return a list of
+registered slave Redis instances.
 
 
 # Author
@@ -257,10 +290,23 @@ Copyright (c) James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
 
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+* Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

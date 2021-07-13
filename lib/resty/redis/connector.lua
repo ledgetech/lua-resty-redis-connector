@@ -89,6 +89,7 @@ end
 local DEFAULTS = setmetatable({
     connect_timeout = 100,
     read_timeout = 1000,
+    send_timeout = 1000,
     connection_options = {}, -- pool, etc
     keepalive_timeout = 60000,
     keepalive_poolsize = 30,
@@ -185,13 +186,30 @@ end
 _M.parse_dsn = parse_dsn
 
 
-function _M.new(config)
-    -- Fill out gaps in config with any dsn params
+-- Fill out gaps in config with any dsn params
+local function apply_dsn(config)
     if config and config.url then
         local err
         config, err = parse_dsn(config)
         if err then ngx_log(ngx_ERR, err) end
     end
+    return config
+end
+
+
+-- For backwards compatability; previously send_timeout was implicitly the
+-- same as read_timeout. So if only the latter is given, ensure the former
+-- matches.
+local function apply_fallback_send_timeout(config)
+    if config and not config.send_timeout and config.read_timeout then
+        config.send_timeout = config.read_timeout
+    end
+end
+
+
+function _M.new(config)
+    config = apply_dsn(config)
+    apply_fallback_send_timeout(config)
 
     local ok, config = pcall(tbl_copy_merge_defaults, config, DEFAULTS)
     if not ok then
@@ -212,11 +230,8 @@ end
 
 
 function _M.connect(self, params)
-    if params and params.url then
-        local err
-        params, err = parse_dsn(params)
-        if err then ngx_log(ngx_ERR, err) end
-    end
+    params = apply_dsn(params)
+    apply_fallback_send_timeout(params)
 
     params = tbl_copy_merge_defaults(params, self.config)
 
@@ -337,7 +352,11 @@ function _M.connect_to_host(self, host)
         end
     end
 
-    r:set_timeout(config.connect_timeout)
+    r:set_timeouts(
+        config.connect_timeout,
+        config.send_timeout,
+        config.read_timeout
+    )
 
     -- Stub out methods for disabled commands
     if next(config.disabled_commands) then
@@ -368,8 +387,6 @@ function _M.connect_to_host(self, host)
     if not ok then
         return nil, err
     else
-        r:set_timeout(config.read_timeout)
-
         local username = host.username
         local password = host.password
         if password and password ~= "" then

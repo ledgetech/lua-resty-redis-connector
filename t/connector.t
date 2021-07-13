@@ -5,6 +5,7 @@ my $pwd = cwd();
 
 our $HttpConfig = qq{
 lua_package_path "$pwd/lib/?.lua;;";
+lua_socket_log_errors Off;
 
 init_by_lua_block {
     require("luacov.runner").init()
@@ -295,35 +296,35 @@ location /t {
         assert(params and not err,
             "url should parse without error: " .. tostring(err))
 
-		assert(params.host == "127.0.0.1", "host should be localhost")
-		assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT,
-			"port should be $TEST_NGINX_REDIS_PORT")
-		assert(tonumber(params.db) == 4, "db should be 4")
-		assert(params.password == "foo", "password should be foo")
+        assert(params.host == "127.0.0.1", "host should be localhost")
+        assert(tonumber(params.port) == $TEST_NGINX_REDIS_PORT,
+            "port should be $TEST_NGINX_REDIS_PORT")
+        assert(tonumber(params.db) == 4, "db should be 4")
+        assert(params.password == "foo", "password should be foo")
 
 
-		local user_params = {
-			url = "sentinel://foo:bar@foomaster:s/2"
-		}
+        local user_params = {
+            url = "sentinel://foo:bar@foomaster:s/2"
+        }
 
-		local params, err = rc.parse_dsn(user_params)
-		assert(params and not err,
-			"url should parse without error: " .. tostring(err))
+        local params, err = rc.parse_dsn(user_params)
+        assert(params and not err,
+            "url should parse without error: " .. tostring(err))
 
-		assert(params.master_name == "foomaster", "master_name should be foomaster")
-		assert(params.role == "slave", "role should be slave")
-		assert(tonumber(params.db) == 2, "db should be 2")
-		assert(params.username == "foo", "username should be foo")
-		assert(params.password == "bar", "password should be bar")
+        assert(params.master_name == "foomaster", "master_name should be foomaster")
+        assert(params.role == "slave", "role should be slave")
+        assert(tonumber(params.db) == 2, "db should be 2")
+        assert(params.username == "foo", "username should be foo")
+        assert(params.password == "bar", "password should be bar")
 
 
-		local params = {
-			url = "sentinels:/wrongformat",
-		}
+        local params = {
+            url = "sentinels:/wrongformat",
+        }
 
-		local ok, err = rc.parse_dsn(params)
-		assert(not ok and err == "could not parse DSN: nil",
-			"url should fail to parse")
+        local ok, err = rc.parse_dsn(params)
+        assert(not ok and err == "could not parse DSN: nil",
+            "url should fail to parse")
     }
 }
 --- request
