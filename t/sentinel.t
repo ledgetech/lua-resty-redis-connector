@@ -26,7 +26,34 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: Get the master
+=== TEST 1: Connect using redis:// protocol
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new()
+        local sentinel, err, pong
+
+        sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1", db = ngx.null }
+        assert(sentinel and not err, "sentinel should connect without errors but got " .. tostring(err))
+        pong, err = sentinel:ping()
+        assert(pong and not err, "sentinel should respond to PING got " .. tostring(err))
+        sentinel:close()
+
+        sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1", db = 0 }
+        assert(sentinel and not err, "sentinel should connect with db=0 without errors but got " .. tostring(err))
+        pong, err = sentinel:ping()
+        assert(pong and not err, "sentinel should respond to PING got " .. tostring(err))
+        sentinel:close()
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+
+=== TEST 2: Get the master
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -34,7 +61,7 @@ location /t {
         local rc = require("resty.redis.connector").new()
         local rs = require("resty.redis.sentinel")
 
-        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
+        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1", db = ngx.null }
         assert(sentinel and not err, "sentinel should connect without errors but got " .. tostring(err))
 
         local master, err = rs.get_master(sentinel, "mymaster")
@@ -57,7 +84,7 @@ GET /t
 [error]
 
 
-=== TEST 1b: Get the master directly
+=== TEST 2b: Get the master directly
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -84,7 +111,7 @@ GET /t
 [error]
 
 
-=== TEST 2: Get slaves
+=== TEST 3: Get slaves
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -92,7 +119,7 @@ location /t {
         local rc = require("resty.redis.connector").new()
         local rs = require("resty.redis.sentinel")
 
-        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" }
+        local sentinel, err = rc:connect{ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1", db = ngx.null }
         assert(sentinel and not err, "sentinel should connect without error")
 
         local slaves, err = rs.get_slaves(sentinel, "mymaster")
@@ -121,14 +148,14 @@ location /t {
 [error]
 
 
-=== TEST 3: Get only healthy slaves
+=== TEST 4: Get only healthy slaves
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
     content_by_lua_block {
         local rc = require("resty.redis.connector").new()
 
-        local sentinel, err = rc:connect({ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1" })
+        local sentinel, err = rc:connect({ url = "redis://127.0.0.1:$TEST_NGINX_SENTINEL_PORT1", db = ngx.null })
         assert(sentinel and not err, "sentinel should connect without error")
 
         local slaves, err = require("resty.redis.sentinel").get_slaves(
@@ -183,7 +210,7 @@ GET /t
 [error]
 
 
-=== TEST 4: connector.connect_via_sentinel
+=== TEST 5: connector.connect_via_sentinel
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -215,7 +242,7 @@ GET /t
 [error]
 
 
-=== TEST 5: regression for slave sorting (iss12)
+=== TEST 6: regression for slave sorting (iss12)
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -252,7 +279,7 @@ GET /t
 --- no_error_log
 [error]
 
-=== TEST 6: connect with acl
+=== TEST 7: connect with acl
 --- http_config eval: $::HttpConfig
 --- config
 location /t {

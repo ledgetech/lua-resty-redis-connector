@@ -197,7 +197,7 @@ the server
 
 `syntax: rc = redis_connector.new(params)`
 
-Creates the Redis Connector object, overring default params with the ones given.
+Creates the Redis Connector object, overriding default params with the ones given.
 In case of failures, returns `nil` and a string describing the error.
 
 
@@ -205,8 +205,8 @@ In case of failures, returns `nil` and a string describing the error.
 
 `syntax: redis, err = rc:connect(params)`
 
-Attempts to create a connection, according to the [params](#parameters)
-supplied, falling back to defaults given in `new` or the predefined defaults. If
+Attempts to create a connection, according to the `params` supplied, falling back
+to [defaults](#default-parameters) given in `new` or the predefined defaults. If
 a connection cannot be made, returns `nil` and a string describing the reason.
 
 Note that `params` given here do not change the connector's own configuration,

@@ -1,17 +1,36 @@
-local ipairs, pcall, error, tostring, type, next, setmetatable, getmetatable =
-    ipairs, pcall, error, tostring, type, next, setmetatable, getmetatable
+local ipairs, pairs, pcall, error, tostring, type, next, setmetatable, getmetatable =
+    ipairs, pairs, pcall, error, tostring, type, next, setmetatable, getmetatable
 
 local ngx_log = ngx.log
 local ngx_ERR = ngx.ERR
 local ngx_re_match = ngx.re.match
+local null = ngx.null
 
 local str_find = string.find
 local str_sub = string.sub
 local tbl_remove = table.remove
 local tbl_sort = table.sort
-local ok, tbl_new = pcall(require, "table.new")
-if not ok then
-    tbl_new = function (narr, nrec) return {} end -- luacheck: ignore 212
+local tbl_clone, tbl_new
+do
+    local ok
+    ok, tbl_new = pcall(require, "table.new")
+    if not ok then
+        tbl_new = function (narr, nrec) return {} end -- luacheck: ignore 212
+    end
+    ok, tbl_clone = pcall(require, "table.clone")
+    if not ok then
+        tbl_clone = function (src)
+            local result = {}
+            for i, v in ipairs(src) do
+                result[i] = v
+            end
+            for k, v in pairs(src) do
+                result[k] = v
+            end
+
+            return result
+        end
+    end
 end
 
 local redis = require("resty.redis")
@@ -253,19 +272,19 @@ end
 
 
 function _M.connect_via_sentinel(self, params)
-    local sentinels = params.sentinels
     local master_name = params.master_name
     local role = params.role
     local db = params.db
     local username = params.username
     local password = params.password
-    local sentinel_username = params.sentinel_username
-    local sentinel_password = params.sentinel_password
-    if sentinel_password then
-        for _, host in ipairs(sentinels) do
-            host.username = sentinel_username
-            host.password = sentinel_password
-        end
+
+    local sentinels = tbl_new(#params.sentinels, 0)
+    for i, sentinel in ipairs(params.sentinels) do
+        local host = tbl_clone(sentinel)
+        host.db = null
+        host.username = host.username or params.sentinel_username
+        host.password = host.password or params.sentinel_password
+        sentinels[i] = host
     end
 
     local sentnl, err, previous_errors = self:try_hosts(sentinels)
@@ -344,7 +363,7 @@ function _M.connect_to_host(self, host)
 
     -- config options in 'host' should override the global defaults
     -- host contains keys that aren't in config
-    -- this can break tbl_copy_merge_defaults, hence the mannual loop here
+    -- this can break tbl_copy_merge_defaults, hence the manual loop here
     local config = tbl_copy(self.config)
     for k, _ in pairs(config) do
         if host[k] then
@@ -402,20 +421,20 @@ function _M.connect_to_host(self, host)
             end
         end
 
-        -- No support for DBs in proxied Redis.
-        if config.connection_is_proxied ~= true and host.db ~= nil then
-            local res, err = r:select(host.db)
+        -- No support for DBs in proxied Redis and Redis Sentinel
+        if config.connection_is_proxied ~= true and host.db ~= nil and host.db ~= null then
+            local res, select_err = r:select(host.db)
 
             -- SELECT will fail if we are connected to sentinel:
             -- detect it and ignore error message it that's the case
-            if err and str_find(err, "ERR unknown command") then
+            if select_err and str_find(select_err, "ERR unknown command") then
                 local role = r:role()
                 if role and role[1] == "sentinel" then
-                    err = nil
+                    select_err = nil
                 end
             end
-            if err then
-                return res, err
+            if select_err then
+                return res, select_err
             end
         end
         return r, nil
