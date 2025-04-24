@@ -126,6 +126,8 @@ local DEFAULTS = setmetatable({
     master_name = "mymaster",
     role = "master",  -- master | slave
     sentinels = {},
+    rotate_slaves = false,
+    slave_rr_counter = 0,
 
     -- Redis proxies typically don't support full Redis capabilities
     connection_is_proxied = false,
@@ -262,6 +264,20 @@ function _M.connect(self, params)
 end
 
 
+local function rotate_slaves(self, slaves)
+    local slaves_length = #slaves
+    local rotated_slaves = tbl_new(slaves_length, 0)
+    local local_rr_counter = (self.config.slave_rr_counter + 1) % slaves_length
+    self.config.slave_rr_counter = local_rr_counter
+
+    for i, _ in ipairs(slaves) do
+        local_rr_counter = (local_rr_counter % slaves_length) + 1
+        rotated_slaves[i] = slaves[local_rr_counter]
+    end
+
+    return rotated_slaves
+end
+
 local function sort_by_localhost(a, b)
     if a.host == "127.0.0.1" and b.host ~= "127.0.0.1" then
         return true
@@ -319,6 +335,9 @@ function _M.connect_via_sentinel(self, params)
 
         sentnl:set_keepalive()
 
+        if params.rotate_slaves then
+            slaves = rotate_slaves(self, slaves)
+        end
         -- Put any slaves on 127.0.0.1 at the front
         tbl_sort(slaves, sort_by_localhost)
 
