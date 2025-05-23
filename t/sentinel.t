@@ -147,8 +147,142 @@ location /t {
 --- no_error_log
 [error]
 
+=== TEST 4: Slaves rotation is off by default
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new({
+            url = "sentinel://mymaster:s",
+            sentinels = {
+                { host = "127.0.0.1", port = $TEST_NGINX_SENTINEL_PORT1 },
+            },
+        })
 
-=== TEST 4: Get only healthy slaves
+        for i = 1, 10 do
+            local sentinel, err = rc:connect()
+            assert(sentinel and not err, "sentinel should connect without error")
+
+            local result, err = sentinel:get("very_special_key")
+            assert(result and not err, "get should run without error")
+
+            sentinel:close()
+        end
+
+        -- Now check slaves metrics for processed commands
+        -- Only one slave should be used
+
+        local slave_1_was_used = false
+
+        rc = require("resty.redis.connector").new()
+
+        -- SLAVE_1
+        local slave_1, err = rc:connect({
+            port = $TEST_NGINX_REDIS_PORT_SL1,
+        })
+        assert(slave_1 and not err, "slave_1 should connect without error")
+
+        local metrics, error = slave_1:info("commandstats")
+        assert(metrics and not error, "info should run without error")
+        if (metrics:find("cmdstat_get:calls=10")) then
+            slave_1_was_used = true
+        else
+            assert(not metrics:find("cmdstat_get:calls"), "SLAVE_1 " .. metrics)
+        end
+
+        slave_1:close()
+
+        -- SLAVE_2
+        local slave_2, err = rc:connect({
+            port = $TEST_NGINX_REDIS_PORT_SL2,
+        })
+        assert(slave_2 and not err, "slave_2 should connect without error")
+
+        local metrics, error = slave_2:info("commandstats")
+        assert(metrics and not error, "info should run without error")
+        if (slave_1_was_used) then
+            assert(not metrics:find("cmdstat_get:calls"), "SLAVE_2 " .. metrics)
+        else
+            assert(metrics:find("cmdstat_get:calls=10"), "SLAVE_2 " .. metrics)
+        end
+
+        slave_2:close()
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+=== TEST 5: When slaves rotation is set slaves should be rotated 
+--- http_config eval: $::HttpConfig
+--- config
+location /t {
+    content_by_lua_block {
+        local rc = require("resty.redis.connector").new({
+            url = "sentinel://mymaster:s",
+            sentinels = {
+                { host = "127.0.0.1", port = $TEST_NGINX_SENTINEL_PORT1 },
+            },
+            rotate_slaves=true,
+        })
+
+        for i = 1, 10 do
+            local sentinel, err = rc:connect()
+            assert(sentinel and not err, "sentinel should connect without error")
+
+            local result, err = sentinel:get("very_special_key")
+            assert(result and not err, "get should run without error")
+
+            sentinel:close()
+        end
+
+        -- Now check slaves metrics for processed commands
+        -- Both slaves should be used equally
+
+        local slave_1_was_used_in_previous_test = false
+
+        rc = require("resty.redis.connector").new()
+
+        -- SLAVE_1
+        local slave_1, err = rc:connect({
+            port = $TEST_NGINX_REDIS_PORT_SL1,
+        })
+        assert(slave_1 and not err, "slave_1 should connect without error")
+
+        local metrics, error = slave_1:info("commandstats")
+        assert(metrics and not error, "info should run without error")
+        if (metrics:find("cmdstat_get:calls=15")) then
+            slave_1_was_used_in_previous_test = true
+        else
+            assert(metrics:find("cmdstat_get:calls=5"), "SLAVE_1 " .. metrics)
+        end
+
+        slave_1:close()
+
+        -- SLAVE_2
+        local slave_2, err = rc:connect({
+            port = $TEST_NGINX_REDIS_PORT_SL2,
+        })
+        assert(slave_2 and not err, "slave_2 should connect without error")
+
+        local metrics, error = slave_2:info("commandstats")
+        assert(metrics and not error, "info should run without error")
+        if (slave_1_was_used_in_previous_test) then
+            assert(metrics:find("cmdstat_get:calls=5"), "SLAVE_2 " .. metrics)
+        else
+            assert(metrics:find("cmdstat_get:calls=15"), "SLAVE_2 " .. metrics)
+        end
+
+        slave_2:close()
+    }
+}
+--- request
+GET /t
+--- no_error_log
+[error]
+
+=== TEST 6: Get only healthy slaves
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -210,7 +344,7 @@ GET /t
 [error]
 
 
-=== TEST 5: connector.connect_via_sentinel
+=== TEST 7: connector.connect_via_sentinel
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -242,7 +376,7 @@ GET /t
 [error]
 
 
-=== TEST 6: regression for slave sorting (iss12)
+=== TEST 8: regression for slave sorting (iss12)
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
@@ -279,7 +413,7 @@ GET /t
 --- no_error_log
 [error]
 
-=== TEST 7: connect with acl
+=== TEST 9: connect with acl
 --- http_config eval: $::HttpConfig
 --- config
 location /t {
